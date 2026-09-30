@@ -16,51 +16,70 @@ jobs:
   publish:
     runs-on: ubuntu-24.04
     timeout-minutes: 120
+
     steps:
       - uses: actions/checkout@v6
+
       - uses: actions/setup-python@v6
         with:
           python-version: '3.12'
+
       - name: Install OSM parser
         run: python -m pip install osmium==4.3.1
+
       - name: Download Belgium extract
         shell: bash
         run: |
           set -euo pipefail
-          downloaded=false
-          for attempt in 1 2 3; do
-            url="https://download.geofabrik.de/europe/belgium-latest.osm.pbf?motolimiet=${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}-${attempt}-$(date +%s)"
-            echo "Download attempt ${attempt}: ${url}"
-            if curl --fail --location --max-redirs 10 --connect-timeout 30 --max-time 1200 --proto '=https' --proto-redir '=https' --header 'Cache-Control: no-cache' --silent --show-error --dump-header download-headers.txt --write-out 'HTTP %{http_code}; final URL: %{url_effective}; downloaded: %{size_download} bytes\n' --output belgium-latest.osm.pbf.part "$url"; then
-              if [ "$(stat -c%s belgium-latest.osm.pbf.part)" -gt 100000000 ]; then
-                mv belgium-latest.osm.pbf.part belgium-latest.osm.pbf
-                downloaded=true
-                break
-              fi
-              echo 'Download is unexpectedly small; not accepting it as the Belgium extract.'
-            fi
-            cat download-headers.txt || true
-            rm -f belgium-latest.osm.pbf.part
-            if [ "$attempt" -lt 3 ]; then sleep 10; fi
-          done
-          if [ "$downloaded" != true ]; then
-            echo '::error::Belgium extract download failed. See HTTP headers above.'
+          curl --fail --location --max-redirs 5 --connect-timeout 30 --max-time 120 --retry 3 --silent --show-error --output belgium-download-page.html https://download.geofabrik.de/europe/belgium.html
+
+          python - <<'PYTHON'
+          import re
+          from pathlib import Path
+
+          page = Path("belgium-download-page.html").read_text()
+          names = re.findall(r'href="(belgium-[0-9]{6}\.osm\.pbf)"', page)
+
+          if not names:
+              raise SystemExit("No dated Belgium PBF link found on the Geofabrik download page.")
+
+          newest = max(names)
+          url = "https://download.geofabrik.de/europe/" + newest
+          Path("belgium-download-url.txt").write_text(url)
+          print("Selected current extract:", url)
+          PYTHON
+
+          url="$(cat belgium-download-url.txt)"
+
+          if ! curl --fail --location --max-redirs 5 --connect-timeout 30 --max-time 1200 --retry 3 --retry-delay 10 --proto '=https' --proto-redir '=https' --silent --show-error --dump-header download-headers.txt --write-out 'HTTP %{http_code}; final URL: %{url_effective}; downloaded: %{size_download} bytes\n' --output belgium-latest.osm.pbf.part "$url"; then
+            cat download-headers.txt
             exit 1
           fi
+
+          if [ "$(stat -c%s belgium-latest.osm.pbf.part)" -le 100000000 ]; then
+            echo '::error::Downloaded file is unexpectedly small.'
+            exit 1
+          fi
+
+          mv belgium-latest.osm.pbf.part belgium-latest.osm.pbf
+
       - name: Build and validate SQLite database
         run: |
           python tools/build_belgium_db.py belgium-latest.osm.pbf belgium-limits.db
           python tools/validate_release_map.py belgium-limits.db
+
       - name: Compress and generate update manifest
         run: |
           gzip -n -6 -c belgium-limits.db > belgium-limits.db.gz
           python tools/create_update_manifest.py belgium-limits.db.gz "https://github.com/${GITHUB_REPOSITORY}/releases/latest/download/belgium-limits.db.gz" manifest.json
           printf 'Belgische wegenkaart op basis van OpenStreetMap (© OpenStreetMap contributors). De afgeleide database is beschikbaar onder ODbL 1.0: https://www.openstreetmap.org/copyright. Bronbestand: Geofabrik België-extract. Reproduceerbaar met tools/build_belgium_db.py in deze repository.\n' > release-notes.txt
+
       - name: Publish both files in one release
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           gh release create "map-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}" belgium-limits.db.gz manifest.json --repo "$GITHUB_REPOSITORY" --title "Belgische kaart $(date -u +%Y-%m-%d)" --notes-file release-notes.txt --latest
+
       - name: Record successful publication
         run: |
           date -u +%Y-%m-%dT%H:%M:%SZ > .last-map-publication

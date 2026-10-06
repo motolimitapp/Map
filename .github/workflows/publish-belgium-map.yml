@@ -1,90 +1,266 @@
-name: Publish Belgium map
+name: Build and publish Belgium v3 map
 
 on:
+  workflow_dispatch:
+    inputs:
+      publish:
+        description: Publish the validated map to the live update channel
+        required: true
+        default: true
+        type: boolean
   schedule:
     - cron: '17 4 1,15 * *'
-  workflow_dispatch:
-
-permissions:
-  contents: write
+      timezone: Europe/Brussels
 
 concurrency:
-  group: belgium-map-release
+  group: belgium-v3-build
   cancel-in-progress: false
 
+env:
+  MAP_RELEASE_TAG: map-v3-live
+  GEOFABRIK_URL: https://download.geofabrik.de/europe/belgium-latest.osm.pbf
+
 jobs:
-  publish:
+  build:
+    name: Build and validate
     runs-on: ubuntu-24.04
-    timeout-minutes: 120
-
+    timeout-minutes: 360
+    permissions:
+      contents: read
     steps:
-      - uses: actions/checkout@v6
+      - name: Checkout
+        uses: actions/checkout@v6
 
-      - uses: actions/setup-python@v6
+      - name: Set up Python
+        uses: actions/setup-python@v6
         with:
           python-version: '3.12'
+          cache: pip
+          cache-dependency-path: requirements-v3.txt
 
-      - name: Install OSM parser
-        run: python -m pip install osmium==4.3.1
+      - name: Install dependencies
+        run: python -m pip install -r requirements-v3.txt
 
-      - name: Download Belgium extract
+      - name: Run unit tests
+        run: python -m unittest discover -s tests/v3 -v
+
+      - name: Download current Belgium OSM extract
         shell: bash
         run: |
           set -euo pipefail
-          curl --fail --location --max-redirs 5 --connect-timeout 30 --max-time 120 --retry 3 --silent --show-error --output belgium-download-page.html https://download.geofabrik.de/europe/belgium.html
+          printf '%s\n' "$GEOFABRIK_URL" > source-url.txt
+          curl --fail --location --retry 5 --retry-delay 10 --retry-all-errors --connect-timeout 30 --max-time 1800 --output belgium.osm.pbf "$GEOFABRIK_URL"
+          size=$(stat -c '%s' belgium.osm.pbf)
+          if [ "$size" -lt 100000000 ]; then
+            echo "Geofabrik extract is unexpectedly small: $size bytes" >&2
+            exit 1
+          fi
+          sha256sum belgium.osm.pbf > source-SHA256SUMS.txt
+          curl --fail --location --retry 3 --connect-timeout 20 --max-time 60 --head "$GEOFABRIK_URL" > source-headers.txt || true
 
+      - name: Download AWV snapshot
+        run: python tools/v3/download_awv_full.py awv-full.json
+
+      - name: Build OSM database
+        run: python tools/v3/build_belgium_db.py belgium.osm.pbf belgium-osm.db
+
+      - name: Build OSM-AWV quality database
+        run: python tools/v3/build_quality_map.py belgium-osm.db awv-full.json belgium-quality.db quality-report.json
+
+      - name: Full map validation
+        run: python tools/v3/validate_quality_map.py belgium-osm.db belgium-quality.db --full > validation.json
+
+      - name: SQLite integrity check
+        run: |
           python - <<'PYTHON'
-          import re
-          from pathlib import Path
-
-          page = Path("belgium-download-page.html").read_text()
-          names = re.findall(r'href="(belgium-[0-9]{6}\.osm\.pbf)"', page)
-
-          if not names:
-              raise SystemExit("No dated Belgium PBF link found on the Geofabrik download page.")
-
-          newest = max(names)
-          url = "https://download.geofabrik.de/europe/" + newest
-          Path("belgium-download-url.txt").write_text(url)
-          print("Selected current extract:", url)
+          import sqlite3
+          con = sqlite3.connect('file:belgium-quality.db?mode=ro', uri=True)
+          try:
+              result = con.execute('PRAGMA quick_check').fetchone()[0]
+              if result != 'ok':
+                  raise SystemExit(f'SQLite quick_check failed: {result}')
+              meta = dict(con.execute("SELECT key,value FROM metadata WHERE key IN ('format','built_utc','quality_schema','conflict_check')"))
+              expected = {'format':'motolimiet-3','quality_schema':'1','conflict_check':'osm-awv-1'}
+              for key, value in expected.items():
+                  if meta.get(key) != value:
+                      raise SystemExit(f'Unexpected metadata {key}={meta.get(key)!r}')
+              if not meta.get('built_utc'):
+                  raise SystemExit('Missing built_utc metadata')
+              print('quick_check=ok')
+              print('built_utc=' + meta['built_utc'])
+          finally:
+              con.close()
           PYTHON
 
-          url="$(cat belgium-download-url.txt)"
+      - name: Create deterministic compressed map and checksum
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PYTHON'
+          import gzip
+          import hashlib
+          import shutil
+          from pathlib import Path
 
-          if ! curl --fail --location --max-redirs 5 --connect-timeout 30 --max-time 1200 --retry 3 --retry-delay 10 --proto '=https' --proto-redir '=https' --silent --show-error --dump-header download-headers.txt --write-out 'HTTP %{http_code}; final URL: %{url_effective}; downloaded: %{size_download} bytes\n' --output belgium-latest.osm.pbf.part "$url"; then
-            cat download-headers.txt
+          source = Path('belgium-quality.db')
+          target = Path('belgium-limits.db.gz')
+          with source.open('rb') as src, target.open('wb') as raw, gzip.GzipFile(fileobj=raw, mode='wb', compresslevel=6, mtime=0) as dst:
+              shutil.copyfileobj(src, dst, length=1024 * 1024)
+
+          size = target.stat().st_size
+          if size > 350 * 1024**2:
+              raise SystemExit(f'Compressed map too large: {size} bytes')
+
+          with target.open('rb') as stream:
+              digest = hashlib.file_digest(stream, 'sha256').hexdigest()
+          Path('SHA256SUMS.txt').write_text(f'{digest}  {target.name}\n', encoding='utf-8')
+          print(f'compressed_size={size}')
+          print(f'sha256={digest}')
+          PYTHON
+
+      - name: Create live update manifest
+        shell: bash
+        run: |
+          set -euo pipefail
+          map_asset="belgium-limits-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}.db.gz"
+          mv belgium-limits.db.gz "$map_asset"
+          map_url="https://github.com/${GITHUB_REPOSITORY}/releases/download/${MAP_RELEASE_TAG}/${map_asset}"
+          python tools/v3/create_update_manifest.py "$map_asset" "$map_url" manifest.json
+          printf '%s\n' "$map_asset" > map-asset-name.txt
+          sha256sum "$map_asset" > SHA256SUMS.txt
+          cat manifest.json
+
+      - name: Verify release package
+        run: |
+          python - <<'PYTHON'
+          import json
+          import pathlib
+          import urllib.parse
+
+          manifest = json.loads(pathlib.Path('manifest.json').read_text(encoding='utf-8'))
+          asset = pathlib.Path('map-asset-name.txt').read_text(encoding='utf-8').strip()
+          required = {'format','built_utc','url','sha256'}
+          missing = required.difference(manifest)
+          if missing:
+              raise SystemExit(f'Manifest fields missing: {sorted(missing)}')
+          if manifest['format'] != 'motolimiet-3':
+              raise SystemExit('Manifest is not motolimiet-3')
+          if len(manifest['sha256']) != 64:
+              raise SystemExit('Invalid SHA-256 in manifest')
+          if pathlib.PurePosixPath(urllib.parse.urlparse(manifest['url']).path).name != asset:
+              raise SystemExit('Manifest URL does not reference the packaged map asset')
+          print('release_package=ok')
+          PYTHON
+
+      - name: Upload validated candidate artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: belgium-map-v3-${{ github.run_id }}-${{ github.run_attempt }}
+          retention-days: 30
+          if-no-files-found: error
+          path: |
+            belgium-limits-*.db.gz
+            manifest.json
+            quality-report.json
+            validation.json
+            SHA256SUMS.txt
+            source-url.txt
+            source-headers.txt
+            source-SHA256SUMS.txt
+            map-asset-name.txt
+
+  publish:
+    name: Publish live update channel
+    needs: build
+    if: ${{ github.event_name == 'schedule' || inputs.publish == true }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    environment: map-production
+    permissions:
+      contents: write
+    steps:
+      - name: Download validated candidate
+        uses: actions/download-artifact@v5
+        with:
+          name: belgium-map-v3-${{ github.run_id }}-${{ github.run_attempt }}
+          path: release
+
+      - name: Read release metadata
+        id: release_meta
+        shell: bash
+        run: |
+          set -euo pipefail
+          asset=$(cat release/map-asset-name.txt)
+          if [ ! -f "release/$asset" ]; then
+            echo "Map asset not found: $asset" >&2
             exit 1
           fi
+          echo "asset=$asset" >> "$GITHUB_OUTPUT"
 
-          if [ "$(stat -c%s belgium-latest.osm.pbf.part)" -le 100000000 ]; then
-            echo '::error::Downloaded file is unexpectedly small.'
-            exit 1
-          fi
-
-          mv belgium-latest.osm.pbf.part belgium-latest.osm.pbf
-
-      - name: Build and validate SQLite database
-        run: |
-          python tools/build_belgium_db.py belgium-latest.osm.pbf belgium-limits.db
-          python tools/validate_release_map.py belgium-limits.db
-
-      - name: Compress and generate update manifest
-        run: |
-          gzip -n -6 -c belgium-limits.db > belgium-limits.db.gz
-          python tools/create_update_manifest.py belgium-limits.db.gz "https://github.com/${GITHUB_REPOSITORY}/releases/latest/download/belgium-limits.db.gz" manifest.json
-          printf 'Belgische wegenkaart op basis van OpenStreetMap (© OpenStreetMap contributors). De afgeleide database is beschikbaar onder ODbL 1.0: https://www.openstreetmap.org/copyright. Bronbestand: Geofabrik België-extract. Reproduceerbaar met tools/build_belgium_db.py in deze repository.\n' > release-notes.txt
-
-      - name: Publish both files in one release
+      - name: Create live release channel if needed
         env:
           GH_TOKEN: ${{ github.token }}
+        shell: bash
         run: |
-          gh release create "map-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}" belgium-limits.db.gz manifest.json --repo "$GITHUB_REPOSITORY" --title "Belgische kaart $(date -u +%Y-%m-%d)" --notes-file release-notes.txt --latest
+          set -euo pipefail
+          if ! gh release view "$MAP_RELEASE_TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release create "$MAP_RELEASE_TAG" --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" --title "MotoLimiet Belgium map v3" --notes "Stable update channel for validated MotoLimiet Belgium v3 maps. Assets are maintained by GitHub Actions." --latest=false
+          fi
 
-      - name: Record successful publication
+      - name: Upload new map asset first
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
         run: |
-          date -u +%Y-%m-%dT%H:%M:%SZ > .last-map-publication
-          git config user.name 'github-actions[bot]'
-          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add .last-map-publication
-          git commit -m 'Record Belgium map publication'
-          git push
+          set -euo pipefail
+          gh release upload "$MAP_RELEASE_TAG" "release/${{ steps.release_meta.outputs.asset }}" --repo "$GITHUB_REPOSITORY"
+
+      - name: Publish manifest and diagnostics
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          gh release upload "$MAP_RELEASE_TAG" \
+            release/manifest.json \
+            release/quality-report.json \
+            release/validation.json \
+            release/SHA256SUMS.txt \
+            release/source-url.txt \
+            release/source-headers.txt \
+            release/source-SHA256SUMS.txt \
+            --repo "$GITHUB_REPOSITORY" --clobber
+
+      - name: Verify published assets
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          asset="${{ steps.release_meta.outputs.asset }}"
+          assets=$(gh api "repos/${GITHUB_REPOSITORY}/releases/tags/${MAP_RELEASE_TAG}" --jq '.assets[].name')
+          for required in "$asset" manifest.json quality-report.json validation.json SHA256SUMS.txt; do
+            if ! grep -Fxq "$required" <<< "$assets"; then
+              echo "Published release is missing $required" >&2
+              exit 1
+            fi
+          done
+
+      - name: Retain current and previous map asset
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          gh api "repos/${GITHUB_REPOSITORY}/releases/tags/${MAP_RELEASE_TAG}" \
+            --jq '[.assets[] | select((.name | startswith("belgium-limits-")) and (.name | endswith(".db.gz")))] | sort_by(.created_at) | reverse | .[2:][] | .id' \
+            | while read -r asset_id; do
+                [ -z "$asset_id" ] && continue
+                gh api --method DELETE "repos/${GITHUB_REPOSITORY}/releases/assets/${asset_id}"
+              done
+
+      - name: Show update URLs
+        shell: bash
+        run: |
+          echo "Manifest: https://github.com/${GITHUB_REPOSITORY}/releases/download/${MAP_RELEASE_TAG}/manifest.json"
+          echo "Map:      https://github.com/${GITHUB_REPOSITORY}/releases/download/${MAP_RELEASE_TAG}/${{ steps.release_meta.outputs.asset }}"

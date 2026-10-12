@@ -128,7 +128,7 @@ jobs:
           retention-days: 14
 
   candidate_build:
-    if: github.event_name == 'pull_request' && contains(github.head_ref, 'candidate-crosswalk-zone30')
+    if: github.event_name == 'pull_request' && contains(github.head_ref, 'candidate-crosswalk-zone30-full')
     runs-on: ubuntu-24.04
     timeout-minutes: 180
     permissions:

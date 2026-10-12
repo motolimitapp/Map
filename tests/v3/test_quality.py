@@ -101,8 +101,9 @@ class PolicyTests(unittest.TestCase):
   from build_quality_map import EvidenceIndex
   from enrich_awv import FROM_LOCAL
   index=EvidenceIndex(collection([
-   feature(1,0,[(-30,2),(100,2)],50,'F1a'),
-   feature(1,0,[(-30,3),(100,3)],30,'F4a',zone='["SnelheidsZone","BebouwdeKom"]')
+   feature(10,0,[(-60,2),(-30,2)],50,'F1a','pred'),
+   feature(1,10,[(-30,2),(100,2)],50,'F1a','builtup'),
+   feature(1,10,[(-30,3),(100,3)],30,'F4a','zone30',zone='["SnelheidsZone","BebouwdeKom"]')
   ]))
   lon1,lat1=FROM_LOCAL(X+10,Y);lon2,lat2=FROM_LOCAL(X+90,Y)
   pieces=index.quality_pieces((1,lat1,lon1,lat2,lon2,0,0,0,'Testweg'),(MISSING,MISSING),True)
@@ -113,8 +114,10 @@ class PolicyTests(unittest.TestCase):
   from build_quality_map import EvidenceIndex
   from enrich_awv import FROM_LOCAL
   index=EvidenceIndex(collection([
-   feature(1,0,[(-30,2),(100,2)],50,'F1a'),
-   feature(2,0,[(-30,3),(100,3)],30,'F4a',zone='["SnelheidsZone","BebouwdeKom"]')
+   feature(10,0,[(-60,2),(-30,2)],50,'F1a','pred50'),
+   feature(1,10,[(-30,2),(100,2)],50,'F1a','builtup'),
+   feature(20,0,[(-60,3),(-30,3)],50,'F1a','pred30'),
+   feature(2,20,[(-30,3),(100,3)],30,'F4a','zone30',zone='["SnelheidsZone","BebouwdeKom"]')
   ]))
   lon1,lat1=FROM_LOCAL(X+10,Y);lon2,lat2=FROM_LOCAL(X+90,Y)
   pieces=index.quality_pieces((1,lat1,lon1,lat2,lon2,0,0,0,'Testweg'),(MISSING,MISSING),True)

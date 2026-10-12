@@ -7,6 +7,7 @@ legal speed or modify any production map.
 """
 import argparse
 import json
+import math
 import pathlib
 import urllib.parse
 import urllib.request
@@ -75,6 +76,26 @@ def get_layer(endpoint, typename, bbox31370, page_size, max_features):
         start += len(batch)
     return {"type": "FeatureCollection", "features": features}, urls, len(features) >= max_features
 
+def _angle_error(a, b):
+    return abs((a - b + 180.0) % 360.0 - 180.0)
+
+def _nearest_segment_heading(point, geometry):
+    lines = list(geometry.geoms) if geometry.geom_type == "MultiLineString" else [geometry]
+    best = None
+    for line in lines:
+        coords = list(line.coords)
+        for a, b in zip(coords, coords[1:]):
+            dx, dy = b[0] - a[0], b[1] - a[1]
+            length = math.hypot(dx, dy)
+            if length < 0.01:
+                continue
+            segment = shape({"type": "LineString", "coordinates": [a, b]})
+            distance = float(point.distance(segment))
+            if best is None or distance < best[0]:
+                heading = (math.degrees(math.atan2(dx, dy)) + 360.0) % 360.0
+                best = (distance, heading)
+    return best
+
 def nearest(anchor, features, limit=5):
     transformer = Transformer.from_crs("EPSG:4326", "EPSG:31370", always_xy=True)
     point = Point(*transformer.transform(anchor["lon"], anchor["lat"]))
@@ -86,14 +107,27 @@ def nearest(anchor, features, limit=5):
         try:
             geometry31370 = shp_transform(transformer.transform, shape(geometry))
             distance = float(point.distance(geometry31370))
+            tangent = _nearest_segment_heading(point, geometry31370)
         except Exception:
             continue
-        results.append({
+        item = {
             "distance_m": round(distance, 2),
             "id": feature.get("id"),
             "geometry_type": geometry.get("type"),
             "properties": feature.get("properties") or {},
-        })
+            "within_7m": distance <= 7.0,
+        }
+        if tangent is not None:
+            item["local_geometry_heading_deg"] = round(tangent[1], 1)
+        if "bearing_deg" in anchor and tangent is not None:
+            directed = _angle_error(anchor["bearing_deg"], tangent[1])
+            axis = min(directed, abs(180.0 - directed))
+            item["ride_bearing_deg"] = anchor["bearing_deg"]
+            item["directed_heading_error_deg"] = round(directed, 1)
+            item["axis_heading_error_deg"] = round(axis, 1)
+            item["within_20deg_axis"] = axis <= 20.0
+            item["within_7m_and_20deg_axis"] = distance <= 7.0 and axis <= 20.0
+        results.append(item)
     results.sort(key=lambda item: item["distance_m"])
     return results[:limit]
 

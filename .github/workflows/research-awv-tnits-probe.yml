@@ -91,12 +91,16 @@ jobs:
       - name: Install crosswalk dependencies
         run: python -m pip install --disable-pip-version-check -r requirements-v3.txt
       - name: Download live MotoLimiet v3 map
+        env:
+          GH_TOKEN: ${{ github.token }}
         shell: bash
         run: |
           set -euo pipefail
-          curl --fail --location --retry 3 --connect-timeout 20 --max-time 120 -o live-manifest.json "https://github.com/${GITHUB_REPOSITORY}/releases/download/map-v3-live/manifest.json"
-          map_url=$(python -c 'import json; print(json.load(open("live-manifest.json"))["url"])')
-          curl --fail --location --retry 3 --connect-timeout 20 --max-time 600 -o live-map.db.gz "$map_url"
+          mkdir live-release
+          gh release download map-v3-live --repo "$GITHUB_REPOSITORY" --dir live-release --pattern manifest.json --pattern 'belgium-limits-*.db.gz'
+          cp live-release/manifest.json live-manifest.json
+          map_asset=$(python -c 'import json, pathlib, urllib.parse; print(pathlib.PurePosixPath(urllib.parse.urlparse(json.load(open("live-manifest.json"))["url"]).path).name)')
+          cp "live-release/$map_asset" live-map.db.gz
           python - <<'PYTHON'
           import gzip, shutil
           with gzip.open("live-map.db.gz","rb") as src, open("live-map.db","wb") as dst:

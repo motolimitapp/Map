@@ -73,8 +73,10 @@ class PolicyTests(unittest.TestCase):
   from build_quality_map import EvidenceIndex
   from enrich_awv import FROM_LOCAL
   index=EvidenceIndex(collection([
-   feature(1,0,[(-30,2),(100,2)],30,'F4a',zone='["SnelheidsZone"]'),
-   feature(2,0,[(-30,4),(100,4)],50,'F1a')
+   feature(10,0,[(-60,2),(-30,2)],50,'F1a','pred30'),
+   feature(1,10,[(-30,2),(100,2)],30,'F4a','zone30',zone='["SnelheidsZone"]'),
+   feature(20,0,[(-60,4),(-30,4)],50,'F1a','pred50'),
+   feature(2,20,[(-30,4),(100,4)],50,'F1a','builtup50')
   ]))
   index.crosswalk.match=lambda line:(1,{"reason":"matched"})
   lon1,lat1=FROM_LOCAL(X+10,Y);lon2,lat2=FROM_LOCAL(X+90,Y)
@@ -86,7 +88,8 @@ class PolicyTests(unittest.TestCase):
   from build_quality_map import EvidenceIndex
   from enrich_awv import FROM_LOCAL
   index=EvidenceIndex(collection([
-   feature(1,0,[(-30,2),(100,2)],30,'F4a',zone='["SnelheidsZone"]')
+   feature(10,0,[(-60,2),(-30,2)],50,'F1a','pred30'),
+   feature(1,10,[(-30,2),(100,2)],30,'F4a','zone30',zone='["SnelheidsZone"]')
   ]))
   index.crosswalk.match=lambda line:(1,{"reason":"matched"})
   lon1,lat1=FROM_LOCAL(X+10,Y);lon2,lat2=FROM_LOCAL(X+90,Y)

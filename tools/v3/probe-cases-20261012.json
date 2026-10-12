@@ -28,17 +28,26 @@
         {
           "label": "first_nearby_30",
           "lat": 51.0318418,
-          "lon": 4.0914824
+          "lon": 4.0914824,
+          "bearing_deg": 93.9,
+          "app_selected_road": "Gentsesteenweg",
+          "app_selected_limit": 0
         },
         {
           "label": "first_selected_30",
           "lat": 51.0318247,
-          "lon": 4.0917542
+          "lon": 4.0917542,
+          "bearing_deg": 94.7,
+          "app_selected_road": "Kerkstraat",
+          "app_selected_limit": 30
         },
         {
           "label": "confirmed_30",
           "lat": 51.0318154,
-          "lon": 4.092009
+          "lon": 4.092009,
+          "bearing_deg": 93.9,
+          "app_selected_road": "Kerkstraat",
+          "app_selected_limit": 30
         }
       ]
     },
@@ -54,22 +63,34 @@
         {
           "label": "ambiguous_201439",
           "lat": 50.9807187,
-          "lon": 4.0831841
+          "lon": 4.0831841,
+          "bearing_deg": 270.9,
+          "app_selected_road": "Nieuwstraat",
+          "app_selected_limit": 0
         },
         {
           "label": "ambiguous_201443",
           "lat": 50.9807276,
-          "lon": 4.0826564
+          "lon": 4.0826564,
+          "bearing_deg": 270.2,
+          "app_selected_road": "Nieuwstraat",
+          "app_selected_limit": 0
         },
         {
           "label": "first_clean_30",
           "lat": 50.9807115,
-          "lon": 4.0823878
+          "lon": 4.0823878,
+          "bearing_deg": 259.4,
+          "app_selected_road": "Nieuwstraat",
+          "app_selected_limit": 30
         },
         {
           "label": "announced_30",
           "lat": 50.9806575,
-          "lon": 4.0821428
+          "lon": 4.0821428,
+          "bearing_deg": 243.2,
+          "app_selected_road": "Nieuwstraat",
+          "app_selected_limit": 30
         }
       ]
     },

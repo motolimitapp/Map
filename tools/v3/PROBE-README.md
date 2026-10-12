@@ -1,19 +1,35 @@
-# AWV / TN-ITS evidence probe (research only)
+# AWV / TN-ITS evidence probe — 12 October 2026
 
-Run: `python tools/v3/probe_official_evidence.py --config tools/v3/probe-cases-20261012.json --out probe-output`
+Research-only. This branch/PR does **not** change MotoLimiet's production map, resolver, app or release.
 
-This does NOT change the map, resolver, APK or release. It writes raw GeoJSON and summary.json; exit 2 means at least one source query failed.
+## What the probe now does
+- Queries the confirmed AWV WFS endpoint and advertised layers for speed regimes, Zone 30, Zone 50, built-up area, woonerf, fietsstraten and motorway zones.
+- Converts WGS84 ride windows to **EPSG:31370 (Belgian Lambert 72)** before WFS BBOX filtering; requests returned GeoJSON in EPSG:4326.
+- Paginates feature retrieval with hard caps.
+- Stores raw GeoJSON per case/layer.
+- Reports property keys and nearest raw geometries to named GPS anchors.
+- Fetches the Flemish TN-ITS dataset-list endpoint as raw bytes; no semantic TN-ITS decoding yet.
 
-**Critical:** The four bounding boxes are approximate windows centered on GPS fixes from the 12 October 2026 rides, NOT verified sign boundaries. They are not complete route geometries. The WFS type name in the example is a hypothesis requiring GetCapabilities verification; adjust to actual advertised QName. The script intentionally does not guess zone layer names. Discover them from the server's WFS GetCapabilities before adding them to the config. Verify EPSG:4326 axis order with a known feature and/or query in EPSG:31370 if necessary. Inspect output for exceptions, counts at cap, geometry and direction before using evidence.
+## What it deliberately does NOT do
+No legal speed inference, majority voting, OSM/AWV conflict resolution, directed-edge matching, zone entry/exit reconstruction, or production database writes.
 
-TN-ITS is optional and requires an actual documented machine-readable URL with compatible JSON; do not assume the transportdata.be catalog page is itself the data feed. TN-ITS is change-only; absence is not negative evidence.
+Nearest feature distance is **diagnostic only**. Before any production decision we still need to validate road direction/topology, Wegenregister identity, feature temporal validity/freshness, zone continuity, and TN-ITS OpenLR/GML semantics.
 
-**Still to implement before any go/no-go decision:** complete GPS log import, point-to-directed-edge spatial join, provenance and temporal validity, feature paging, canonical Wegenregister identity, zone entry/exit boundary checks, TN-ITS OpenLR/GML decoding, and independent verification of source freshness. No production decisions may be based on the current output alone.
+## Run
+`python tools/v3/probe_official_evidence.py --config tools/v3/probe-cases-20261012.json --out probe-output`
 
-Case anchors (UTC+2, 12 Oct 2026):
-- Dendermonde: first selected 30 near 51.0318247,4.0917542 at 15:45:30; physical sign pin not resolved.
-- Wieze: ambiguous 30/0/50 on Nieuwstraat around 20:14:39–20:14:45 near 50.9807,4.083.
-- Steven: incorrect OSM 90 near 50.9707056,4.1076901 at 20:10:05.
-- Gijzegem: 30 selected near 50.9845405,4.0505517 at 20:19:11.
+Dependencies are already in `requirements-v3.txt` (pyproj + shapely).
 
-Keep raw evidence separate from inference. This probe is deliberately limited; the results must not be presented as verified speed limits.
+## Case anchors
+All observations are from 12 Oct 2026; clock labels are Belgian local time (UTC+2).
+
+- Dendermonde: nearby/selected/confirmed 30 around 15:45:28–15:45:32. The user's physical sign Google Maps pin still has not been resolved to coordinates, so these anchors are **not** the physical sign boundary.
+- Wieze: ambiguity on Nieuwstraat around 20:14:39–20:14:45; announcement around 20:14:47.
+- Steven: erroneous OSM 90 selected/announced around 20:10:03–20:10:05.
+- Gijzegem: first-pass and return-pass 30 anchors.
+
+## Interpretation guardrails
+1. All AWV layers are one evidence family; internal agreement is consistency, not independent voting.
+2. Missing feature != proof of absence.
+3. TN-ITS is change-oriented; missing delta != current state is correct.
+4. Do not promote any resolver rule until raw evidence for all four cases has been inspected.

@@ -163,7 +163,19 @@ def parse_tnits(data,radius):
    d=min(hav(case["lat"],case["lon"],lat,lon) for lon,lat in pts)
    if d<=radius:near.append({"case_id":case["id"],"distance_m":round(d,2),"feature_tag":local(f.tag),"text":blob[:3000]})
  near.sort(key=lambda x:(x["case_id"],x["distance_m"]))
- return {"xml_root":local(root.tag),"bytes":len(data),"tag_counts":dict(sorted(counts.items()))},near
+ urls=[]
+ for e in root.iter():
+  for v in e.attrib.values():
+   if isinstance(v,str) and v.startswith(("http://","https://")):urls.append(v)
+  if e.text and e.text.strip().startswith(("http://","https://")):urls.append(e.text.strip())
+ refs=[]
+ for e in root.iter():
+  item={"tag":local(e.tag)}
+  if e.attrib:item["attrs"]=dict(e.attrib)
+  if e.text and e.text.strip() and len(e.text.strip())<500:item["text"]=e.text.strip()
+  if len(item)>1:refs.append(item)
+  if len(refs)>=80:break
+ return {"xml_root":local(root.tag),"bytes":len(data),"tag_counts":dict(sorted(counts.items())),"urls":sorted(set(urls))[:100],"index_sample":refs},near
 
 def to_markdown(report):
  lines=["# MotoLimiet raw AWV / TN-ITS evidence probe","",

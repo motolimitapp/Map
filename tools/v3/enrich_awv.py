@@ -58,6 +58,15 @@ class AwvIndex:
                 records.append((line, props, feature["id"], continuous))
         groups=defaultdict(list)
         for record in records:groups[(record[1]["Wegsegment_ID"],record[1]["Vorige_wegsegment_ID"])].append(record)
+        snapshot_meta=collection.get("motolimiet_snapshot") or {}
+        confirmed_zone30_roads={int(v) for v in snapshot_meta.get("zone30_bidirectional_road_ids",[]) if str(v).lstrip("-").isdigit()}
+        zone30_specific_groups=set()
+        for key,group in groups.items():
+            road_id,_=key
+            if int(road_id) not in confirmed_zone30_roads:
+                continue
+            if any(r[1].get("Bepalend_bord")=="F4a" and r[1].get("Snelheid")==30 and "SnelheidsZone" in str(r[1].get("Zone") or "") for r in group):
+                zone30_specific_groups.add(key)
         proven=set()
         for (_,previous_id),group in groups.items():
             previous=ways.get(previous_id,[])
@@ -81,10 +90,13 @@ class AwvIndex:
             supported = type(value) is int and value in (20, 30, 40, 50, 60, 70, 90, 120) and (supported_sign or zone30_sign)
             if sign in ("F1a", "F1b") and value != 50:
                 supported = False
-            usable = supported and direction_ok and continuous
+            context_only = sign in ("F1a", "F1b") and value == 50 and (props["Wegsegment_ID"],props["Vorige_wegsegment_ID"]) in zone30_specific_groups
+            usable = supported and not context_only and direction_ok and continuous
             kind="fixed" if usable else "unproven"
             if direction_ok and continuous and "IVMS" in str(sign).upper():kind="variable"
             self.evidence[feature_id]=(kind,value or 0,sign or "",feature_id)
+            if context_only:
+                self.stats["zone30_context_suppressed_features"] += 1
             self.stats["usable_features" if usable else "blocking_features"] += 1
             pairs = list(zip(line.coords, list(line.coords)[1:]))
             for edge_number, (a, b) in enumerate(pairs):

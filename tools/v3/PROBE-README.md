@@ -25,11 +25,10 @@ All observations are from 12 Oct 2026; clock labels are Belgian local time (UTC+
 
 - Dendermonde: nearby/selected/confirmed 30 around 15:45:28–15:45:32. The user's physical sign Google Maps pin still has not been resolved to coordinates, so these anchors are **not** the physical sign boundary.
 - Wieze: ambiguity on Nieuwstraat around 20:14:39–20:14:45; announcement around 20:14:47.
-- Steven: erroneous OSM 90 selected/announced around 20:10:03–20:10:05.
 - Gijzegem: first-pass and return-pass 30 anchors.
 
 ## Interpretation guardrails
 1. All AWV layers are one evidence family; internal agreement is consistency, not independent voting.
 2. Missing feature != proof of absence.
 3. TN-ITS is change-oriented; missing delta != current state is correct.
-4. Do not promote any resolver rule until raw evidence for all four cases has been inspected.
+4. Do not promote any resolver rule until raw evidence for the active cases has been inspected.

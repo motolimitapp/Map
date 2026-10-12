@@ -1,6 +1,14 @@
 name: Research AWV TN-ITS evidence probe
 
 on:
+  push:
+    branches:
+      - main
+    paths:
+      - "tools/v3/probe_official_evidence.py"
+      - "tools/v3/probe-cases-20261012.json"
+      - "tools/v3/PROBE-README.md"
+      - ".github/workflows/research-awv-tnits-probe.yml"
   pull_request:
     paths:
       - "tools/v3/probe_official_evidence.py"
@@ -14,7 +22,7 @@ permissions:
 
 jobs:
   probe:
-    if: github.event_name == 'workflow_dispatch' || github.event.pull_request.head.repo.full_name == github.repository
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     steps:

@@ -1,0 +1,164 @@
+{
+  "source": "Real MotoLimiet v3 crosswalk observations from 2026-10-12 research run",
+  "cases": {
+    "dendermonde": [
+      {
+        "osm_segment_id": 537559,
+        "osm_way_id": 31793271,
+        "name": "Lodewijk Dosfelstraat",
+        "road_id": 730829,
+        "start_xy": [
+          0,
+          0
+        ],
+        "end_xy": [
+          40,
+          0
+        ]
+      },
+      {
+        "osm_segment_id": 766451,
+        "osm_way_id": 40580677,
+        "name": "Gentsesteenweg",
+        "road_id": 764261,
+        "start_xy": [
+          100,
+          0
+        ],
+        "end_xy": [
+          140,
+          0
+        ]
+      },
+      {
+        "osm_segment_id": 766452,
+        "osm_way_id": 40580678,
+        "name": "Kerkstraat",
+        "road_id": 764261,
+        "start_xy": [
+          140,
+          0
+        ],
+        "end_xy": [
+          170,
+          0
+        ]
+      },
+      {
+        "osm_segment_id": 766453,
+        "osm_way_id": 40580678,
+        "name": "Kerkstraat",
+        "road_id": null,
+        "start_xy": [
+          170,
+          0
+        ],
+        "end_xy": [
+          195,
+          0
+        ]
+      },
+      {
+        "osm_segment_id": 766454,
+        "osm_way_id": 40580678,
+        "name": "Kerkstraat",
+        "road_id": null,
+        "start_xy": [
+          195,
+          0
+        ],
+        "end_xy": [
+          220,
+          0
+        ]
+      },
+      {
+        "osm_segment_id": 2215562,
+        "osm_way_id": 182210655,
+        "name": "Klein Kwartier",
+        "road_id": 730829,
+        "start_xy": [
+          300,
+          0
+        ],
+        "end_xy": [
+          335,
+          0
+        ]
+      }
+    ],
+    "wieze": [
+      {
+        "osm_segment_id": 2332756,
+        "osm_way_id": 214453963,
+        "name": "Nieuwstraat",
+        "road_id": 616233,
+        "start_xy": [
+          0,
+          0
+        ],
+        "end_xy": [
+          20,
+          0
+        ]
+      },
+      {
+        "osm_segment_id": 2332757,
+        "osm_way_id": 214453963,
+        "name": "Nieuwstraat",
+        "road_id": 616233,
+        "start_xy": [
+          20,
+          0
+        ],
+        "end_xy": [
+          40,
+          0
+        ]
+      },
+      {
+        "osm_segment_id": 2332755,
+        "osm_way_id": 214453963,
+        "name": "Nieuwstraat",
+        "road_id": 616233,
+        "start_xy": [
+          40,
+          0
+        ],
+        "end_xy": [
+          60,
+          0
+        ]
+      },
+      {
+        "osm_segment_id": 2332754,
+        "osm_way_id": 214453963,
+        "name": "Nieuwstraat",
+        "road_id": 616233,
+        "start_xy": [
+          60,
+          0
+        ],
+        "end_xy": [
+          80,
+          0
+        ]
+      },
+      {
+        "osm_segment_id": 2332753,
+        "osm_way_id": 214453963,
+        "name": "Nieuwstraat",
+        "road_id": null,
+        "start_xy": [
+          80,
+          0
+        ],
+        "end_xy": [
+          100,
+          0
+        ]
+      }
+    ]
+  },
+  "note": "Coordinates are normalized topology-only coordinates; IDs/names/road IDs reflect real-v3 observations."
+}

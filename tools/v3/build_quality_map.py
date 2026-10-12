@@ -45,15 +45,17 @@ class EvidenceIndex(AwvIndex):
   original=(row[5],row[6],states[0],states[1],'','')
   if line.length<1:return [(0.,1.,*original)]
   direct_usable=any(self.evidence[self.entries[i][1]][0] in ('fixed','variable') for i in direct_indices)
-  crosswalk_road=None;crosswalk_info=None;indices=direct_indices;match_distance=MAX_DISTANCE
+  crosswalk_road=None;crosswalk_info=None;crosswalk_indices=[];indices=direct_indices;match_distance=MAX_DISTANCE
   if not direct_usable:
    crosswalk_road,crosswalk_info=self.crosswalk.match(line)
    if crosswalk_road is not None:
-    indices=[i for i in self.by_road.get(crosswalk_road,[]) if self.lines[i].distance(line)<=CROSSWALK_MAX_DISTANCE]
+    crosswalk_indices=[i for i in self.by_road.get(crosswalk_road,[]) if self.lines[i].distance(line)<=CROSSWALK_MAX_DISTANCE]
+    indices=crosswalk_indices
     match_distance=CROSSWALK_MAX_DISTANCE
   if not indices or not any(self.evidence[self.entries[i][1]][0] in ('fixed','variable') for i in indices):return [(0.,1.,*original)]
   dx,dy=b[0]-a[0],b[1]-a[1];cuts={0.,1.};length=math.hypot(dx,dy);cosine=math.cos(math.radians(MAX_ANGLE))
   aligned={d:[i for i in indices if d*(dx*self.edges[i][4]+dy*self.edges[i][5])/(length*self.edges[i][6])>=cosine] for d in (1,-1)}
+  crosswalk_aligned=None
   for i in indices:
    for xy in (self.edges[i][:2],self.edges[i][2:4]):
     t=((xy[0]-a[0])*dx+(xy[1]-a[1])*dy)/(dx*dx+dy*dy)
@@ -67,6 +69,19 @@ class EvidenceIndex(AwvIndex):
     resolved=[resolve(osm,oldstate,e,can_fill) for e in samples]
     if all(r==resolved[0] for r in resolved):value,state=resolved[0]
     else:value,state=0,VARIABLE if any(r[1]==VARIABLE for r in resolved) else AMBIGUOUS
+    # A stable road-ID crosswalk may refine direct geometric ambiguity only.
+    # It never overrides VARIABLE or CONFLICT, and never changes a confident direct result.
+    if direct_usable and state==AMBIGUOUS:
+     if crosswalk_info is None:
+      crosswalk_road,crosswalk_info=self.crosswalk.match(line)
+      if crosswalk_road is not None:
+       crosswalk_indices=[i for i in self.by_road.get(crosswalk_road,[]) if self.lines[i].distance(line)<=CROSSWALK_MAX_DISTANCE]
+       crosswalk_aligned={direction:[i for i in crosswalk_indices if direction*(dx*self.edges[i][4]+dy*self.edges[i][5])/(length*self.edges[i][6])>=cosine] for direction in (1,-1)}
+     if crosswalk_road is not None and crosswalk_aligned is not None:
+      refined=[self.at_xy(a[0]+dx*(lo+(hi-lo)*f),a[1]+dy*(lo+(hi-lo)*f),dx*d,dy*d,crosswalk_aligned[d],True,CROSSWALK_MAX_DISTANCE,crosswalk_road) for f in (.1,.5,.9)]
+      refined_resolved=[resolve(osm,oldstate,e,can_fill) for e in refined]
+      if all(rr==refined_resolved[0] for rr in refined_resolved) and refined_resolved[0][1] not in (VARIABLE,CONFLICT,AMBIGUOUS):
+       samples=refined;value,state=refined_resolved[0]
     results.append((value,state,'|'.join(sorted({e[3] for e in samples if e[3]}))))
    state=(results[0][0],results[1][0],results[0][1],results[1][1],results[0][2],results[1][2])
    if pieces and pieces[-1][2:6]==state[:4]:

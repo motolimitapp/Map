@@ -20,6 +20,8 @@ on:
       - "tools/v3/PROBE-README.md"
       - "tools/v3/enrich_awv.py"
       - "tests/v3/test_awv.py"
+      - "tools/v3/awv_osm_crosswalk.py"
+      - "tests/v3/test_crosswalk.py"
       - ".github/workflows/research-awv-tnits-probe.yml"
   workflow_dispatch:
 

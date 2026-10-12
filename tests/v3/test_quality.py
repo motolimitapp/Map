@@ -28,6 +28,32 @@ class PolicyTests(unittest.TestCase):
   pieces=index.quality_pieces((1,lat1,lon1,lat2,lon2,0,0,0,'Testweg'),(MISSING,MISSING),True)
   self.assertTrue(any(p[2]==30 and p[4]==AWV for p in pieces))
 
+ def test_specific_zone30_beats_generic_builtup50(self):
+  from test_awv import feature,collection,X,Y
+  from build_quality_map import EvidenceIndex
+  from shapely.geometry import Point
+  index=EvidenceIndex(collection([
+   feature(1,0,[(-30,0),(0,0)],50,'F1a'),
+   feature(2,1,[(0,0),(100,0)],50,'F1a','builtup'),
+   feature(3,0,[(-30,1),(0,1)],50,'F1a'),
+   feature(4,3,[(0,1),(100,1)],30,'F4a','zone30',zone='["SnelheidsZone"]')
+  ]))
+  indices=list(range(len(index.lines)))
+  self.assertEqual(index.at(Point(X+50,Y+.5),1,0,indices)[:3],('fixed',30,'F4a'))
+
+ def test_zone30_does_not_override_numeric_c43_conflict(self):
+  from test_awv import feature,collection,X,Y
+  from build_quality_map import EvidenceIndex
+  from shapely.geometry import Point
+  index=EvidenceIndex(collection([
+   feature(1,0,[(-30,0),(0,0)],50,'C43'),
+   feature(2,1,[(0,0),(100,0)],50,'C43','numeric50'),
+   feature(3,0,[(-30,1),(0,1)],50,'F1a'),
+   feature(4,3,[(0,1),(100,1)],30,'F4a','zone30',zone='["SnelheidsZone"]')
+  ]))
+  indices=list(range(len(index.lines)))
+  self.assertEqual(index.at(Point(X+50,Y+.5),1,0,indices)[0],'ambiguous')
+
  def test_direct_7m_evidence_precedes_crosswalk_fallback(self):
   from test_awv import feature,collection,X,Y
   from build_quality_map import EvidenceIndex

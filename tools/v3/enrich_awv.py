@@ -97,6 +97,7 @@ class AwvIndex:
             self.evidence[feature_id]=(kind,value or 0,sign or "",feature_id)
             if context_only:
                 self.stats["zone30_context_suppressed_features"] += 1
+                continue
             self.stats["usable_features" if usable else "blocking_features"] += 1
             pairs = list(zip(line.coords, list(line.coords)[1:]))
             for edge_number, (a, b) in enumerate(pairs):

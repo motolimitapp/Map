@@ -1,3 +1,4 @@
+import json
 import sys
 import unittest
 from pathlib import Path
@@ -98,3 +99,18 @@ class TopologyTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class RealV3TopologyFixtureTests(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        path=Path(__file__).resolve().parent/"fixtures"/"crosswalk-real-v3-20261012.json"
+        cls.fixture=json.loads(path.read_text(encoding="utf-8"))
+
+    def test_dendermonde_false_positive_corridors_are_rejected(self):
+        accepted,_=validate_topology(self.fixture["cases"]["dendermonde"])
+        self.assertEqual(accepted,set())
+
+    def test_wieze_nieuwstraat_corridor_is_preserved(self):
+        accepted,_=validate_topology(self.fixture["cases"]["wieze"])
+        self.assertEqual(accepted,{2332756,2332757,2332755,2332754})

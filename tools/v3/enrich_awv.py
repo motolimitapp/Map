@@ -75,7 +75,10 @@ class AwvIndex:
             direction_ok = id(line) in proven
             value = props.get("Snelheid")
             sign = props.get("Bepalend_bord")
-            supported = type(value) is int and value in (20, 30, 40, 50, 60, 70, 90, 120) and sign in ("F1a", "F1b", "C43", "ZC43")
+            zone = str(props.get("Zone") or "")
+            supported_sign = sign in ("F1a", "F1b", "C43", "ZC43")
+            zone30_sign = sign == "F4a" and value == 30 and "SnelheidsZone" in zone
+            supported = type(value) is int and value in (20, 30, 40, 50, 60, 70, 90, 120) and (supported_sign or zone30_sign)
             if sign in ("F1a", "F1b") and value != 50:
                 supported = False
             usable = supported and direction_ok and continuous

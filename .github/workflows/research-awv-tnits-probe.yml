@@ -12,6 +12,7 @@ on:
       - "tests/v3/test_awv.py"
       - "tools/v3/awv_osm_crosswalk.py"
       - "tests/v3/test_crosswalk.py"
+      - "tools/v3/validate_live_crosswalk.py"
       - ".github/workflows/research-awv-tnits-probe.yml"
   pull_request:
     paths:
@@ -75,3 +76,39 @@ jobs:
       - name: Fail if probe reported source errors
         if: steps.probe.outcome != 'success'
         run: exit 1
+
+  live_crosswalk:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+      - name: Install crosswalk dependencies
+        run: python -m pip install --disable-pip-version-check -r requirements-v3.txt
+      - name: Download live MotoLimiet v3 map
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail --location --retry 3 --connect-timeout 20 --max-time 120 -o live-manifest.json "https://github.com/${GITHUB_REPOSITORY}/releases/download/map-v3-live/manifest.json"
+          map_url=$(python -c 'import json; print(json.load(open("live-manifest.json"))["url"])')
+          curl --fail --location --retry 3 --connect-timeout 20 --max-time 600 -o live-map.db.gz "$map_url"
+          python - <<'PYTHON'
+          import gzip, shutil
+          with gzip.open("live-map.db.gz","rb") as src, open("live-map.db","wb") as dst:
+              shutil.copyfileobj(src,dst,1024*1024)
+          PYTHON
+      - name: Validate live Dendermonde and Wieze crosswalk
+        run: PYTHONPATH=tools/v3 python tools/v3/validate_live_crosswalk.py live-map.db tools/v3/probe-cases-20261012.json live-crosswalk-report.json
+      - name: Upload live crosswalk report
+        uses: actions/upload-artifact@v4
+        with:
+          name: live-crosswalk-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            live-crosswalk-report.json
+            live-manifest.json
+          retention-days: 14

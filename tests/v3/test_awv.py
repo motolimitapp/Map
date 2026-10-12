@@ -50,7 +50,7 @@ class FallbackTests(unittest.TestCase):
         self.assertEqual(index.match(Point(X+50,Y),1,0)[0],50)
         self.assertEqual(index.match(Point(X+50,Y),-1,0)[0],70)
 
-# Research coverage for conservative AWV F4a-derived Zone 30 evidence.\n    def test_f4a_zone30_is_usable_only_with_zone_evidence(self):
+# Research coverage: conservative AWV F4a-derived Zone 30 evidence.\n    def test_f4a_zone30_is_usable_only_with_zone_evidence(self):
         features=[feature(1,0,[(-30,0),(0,0)],50,"F1a"),feature(2,1,[(0,0),(100,0)],30,"F4a",zone='["SnelheidsZone", "BebouwdeKom"]')]
         index=AwvIndex(collection(features))
         self.assertEqual(index.match(Point(X+50,Y),1,0)[0],30)

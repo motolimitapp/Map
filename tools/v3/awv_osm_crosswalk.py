@@ -114,3 +114,44 @@ class CrosswalkIndex:
             "distance_variation_m": round(best[1], 2),
             "sample_distances_m": [round(v, 2) for v in best[3]],
         }
+
+
+def validate_corridor(segment_matches, min_run=2):
+    """Validate continuity across ordered OSM segments.
+
+    segment_matches: list of dicts with keys
+      osm_segment_id, osm_way_id, road_id, start_xy, end_xy, info
+
+    A usable corridor requires at least min_run consecutive matched segments
+    with the same AWV road_id. Single-segment matches are not promoted.
+    Segments that switch AWV road_id or are unmatched break the run.
+    """
+    accepted = set()
+    run = []
+    last_road = None
+    for item in segment_matches + [None]:
+        road = None if item is None else item.get("road_id")
+        if road is not None and road == last_road:
+            run.append(item)
+        else:
+            if last_road is not None and len(run) >= min_run:
+                accepted.update(x["osm_segment_id"] for x in run)
+            run = [] if item is None or road is None else [item]
+        last_road = road
+    return accepted
+
+
+def classify_corridor(segment_matches, min_run=2):
+    accepted = validate_corridor(segment_matches, min_run=min_run)
+    result = []
+    for item in segment_matches:
+        x = dict(item)
+        x["corridor_accepted"] = x.get("osm_segment_id") in accepted
+        if x.get("road_id") is None:
+            x["corridor_reason"] = "no_crosswalk"
+        elif x["corridor_accepted"]:
+            x["corridor_reason"] = "stable_run"
+        else:
+            x["corridor_reason"] = "isolated_or_broken_run"
+        result.append(x)
+    return result

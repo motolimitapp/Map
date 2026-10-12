@@ -116,3 +116,38 @@ jobs:
             live-crosswalk-report.json
             live-manifest.json
           retention-days: 14
+
+  candidate_build:
+    if: github.event_name == 'pull_request' && contains(github.head_ref, 'candidate-crosswalk-zone30')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 180
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+      - name: Install v3 dependencies
+        run: python -m pip install --disable-pip-version-check -r requirements-v3.txt
+      - name: Download current Belgium OSM extract
+        run: curl --fail --location --retry 5 --retry-delay 10 --retry-all-errors --connect-timeout 30 --max-time 1800 --output belgium.osm.pbf https://download.geofabrik.de/europe/belgium-latest.osm.pbf
+      - name: Download AWV snapshot
+        run: python tools/v3/download_awv_full.py awv-full.json
+      - name: Build OSM database
+        run: python tools/v3/build_belgium_db.py belgium.osm.pbf belgium-osm.db
+      - name: Build research candidate quality map
+        run: python tools/v3/build_quality_map.py belgium-osm.db awv-full.json belgium-quality.db quality-report.json --workers 2 --checkpoint-every 25000
+      - name: Validate candidate map
+        run: python tools/v3/validate_quality_map.py belgium-osm.db belgium-quality.db --full > validation.json
+      - name: Evaluate Dendermonde and Wieze anchors
+        run: python tools/v3/evaluate_candidate_anchors.py belgium-quality.db tools/v3/probe-cases-20261012.json candidate-anchor-report.json
+      - name: Upload candidate research reports
+        uses: actions/upload-artifact@v4
+        with:
+          name: candidate-crosswalk-zone30-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            quality-report.json
+            validation.json
+            candidate-anchor-report.json
+          retention-days: 14

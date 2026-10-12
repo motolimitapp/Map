@@ -1,6 +1,6 @@
 {
   "wfs_endpoint": "https://opendata.apps.mow.vlaanderen.be/opendata-geoserver/awv/wfs",
-  "tnits_url": "https://opendata.apps.mow.vlaanderen.be/tn-its/rest/dataset/v2",
+  "tnits_url": "https://opendata.apps.mow.vlaanderen.be/tn-its/rest/dataset",
   "page_size": 500,
   "max_features_per_layer": 5000,
   "nearest_count": 5,

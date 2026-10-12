@@ -10,6 +10,7 @@ import json
 import pathlib
 import urllib.parse
 import urllib.request
+import xml.etree.ElementTree as ET
 from datetime import datetime, timezone
 
 from pyproj import Transformer
@@ -175,13 +176,40 @@ def main():
                 suffix = ".bin"
             filename = "tnits-dataset-list" + suffix
             (output / filename).write_bytes(raw)
-            summary["tnits"] = {
+            tnits_result = {
                 "status": "retrieved",
                 "content_type": content_type,
                 "bytes": len(raw),
                 "file": filename,
-                "note": "Raw dataset listing only; no OpenLR/GML interpretation in this probe.",
+                "note": "Dataset list retrieved; limited change records sampled for schema inspection.",
             }
+            sample_limit = int(config.get("tnits_sample_limit", 0))
+            if sample_limit > 0 and suffix == ".xml":
+                root = ET.fromstring(raw)
+                hrefs = []
+                for element in root.iter():
+                    href = element.attrib.get("{http://www.w3.org/1999/xlink}href")
+                    if href:
+                        hrefs.append(href)
+                tnits_result["dataset_ref_count"] = len(hrefs)
+                sample_dir = output / "tnits-samples"
+                sample_dir.mkdir(exist_ok=True)
+                samples = []
+                for index, href in enumerate(hrefs[:sample_limit]):
+                    try:
+                        sample_raw, sample_type = fetch(href)
+                        sample_name = f"dataset-{index:03d}.xml"
+                        (sample_dir / sample_name).write_bytes(sample_raw)
+                        samples.append({
+                            "href": href,
+                            "bytes": len(sample_raw),
+                            "content_type": sample_type,
+                            "file": str(pathlib.Path("tnits-samples") / sample_name),
+                        })
+                    except Exception as sample_exc:
+                        samples.append({"href": href, "error": repr(sample_exc)})
+                tnits_result["samples"] = samples
+            summary["tnits"] = tnits_result
         except Exception as exc:
             summary["tnits"] = {"status": "unavailable", "error": repr(exc)}
             summary["errors"].append({"source": "tnits", "error": repr(exc)})

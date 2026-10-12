@@ -151,3 +151,35 @@ jobs:
             validation.json
             candidate-anchor-report.json
           retention-days: 14
+
+  regional_candidate:
+    if: github.event_name == 'pull_request' && contains(github.head_ref, 'candidate-crosswalk-zone30')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+      - name: Install v3 dependencies
+        run: python -m pip install --disable-pip-version-check -r requirements-v3.txt
+      - name: Download regional OSM XML
+        run: curl --fail --location --retry 3 --connect-timeout 20 --max-time 300 -o region.osm 'https://api.openstreetmap.org/api/0.6/map?bbox=4.075,50.976,4.097,51.036'
+      - name: Download regional AWV snapshot
+        run: python tools/v3/download_awv_region.py awv-region.json --bbox 4.075,50.976,4.097,51.036
+      - name: Build regional OSM database
+        run: python tools/v3/build_belgium_db.py region.osm region-osm.db
+      - name: Build regional candidate
+        run: python tools/v3/build_quality_map.py region-osm.db awv-region.json region-quality.db regional-quality-report.json --workers 1 --checkpoint-every 5000
+      - name: Evaluate Dendermonde and Wieze anchors
+        run: python tools/v3/evaluate_candidate_anchors.py region-quality.db tools/v3/probe-cases-20261012.json regional-anchor-report.json
+      - name: Upload regional candidate report
+        uses: actions/upload-artifact@v4
+        with:
+          name: regional-crosswalk-zone30-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            regional-quality-report.json
+            regional-anchor-report.json
+          retention-days: 14

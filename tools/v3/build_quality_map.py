@@ -33,6 +33,10 @@ class EvidenceIndex(AwvIndex):
   evidence=[self.evidence[c[2]] for c in near];known=[e for e in evidence if e[0] in ('fixed','variable')]
   if not known:return 'unproven',0,'',best[2]
   if any(e[0]=='variable' for e in known):return next(e for e in known if e[0]=='variable')
+  fixed=[e for e in known if e[0]=='fixed']
+  values={e[1] for e in fixed}
+  if values=={30,50} and any(e[1]==30 and e[2]=='F4a' for e in fixed) and all((e[1]==30 and e[2]=='F4a') or (e[1]==50 and e[2] in ('F1a','F1b')) for e in fixed):
+   return next(e for e in fixed if e[1]==30 and e[2]=='F4a')
   for c,e in zip(near,evidence):
    if e[0]!='fixed' or e[1]!=known[0][1]:return 'ambiguous',0,'',best[2]
    if c[3]!=best[3]:

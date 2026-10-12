@@ -1,0 +1,54 @@
+{
+  "wfs_endpoint": "https://opendata.apps.mow.vlaanderen.be/opendata-geoserver/awv/wfs",
+  "tnits_url": "https://opendata.apps.mow.vlaanderen.be/tn-its/rest/dataset/v2",
+  "page_size": 500,
+  "max_features_per_layer": 5000,
+  "nearest_count": 5,
+  "bbox_margin_m": 75,
+  "layers": {
+    "speed": "awv:Afgeleide_snelheidsregimes",
+    "zone30": "awv:Afgeleide_zones_zone30",
+    "zone50": "awv:Afgeleide_zones_zone50",
+    "builtup": "awv:Afgeleide_zones_bebouwdekom",
+    "woonerf": "awv:Afgeleide_zones_woonerf",
+    "fietsstraat": "awv:Afgeleide_zones_fietsstraten",
+    "motorway": "awv:Afgeleide_zones_autosnelwegzones"
+  },
+  "cases": [
+    {
+      "name": "dendermonde",
+      "bbox": [4.086, 51.029, 4.096, 51.035],
+      "anchors": [
+        {"label": "first_nearby_30", "lat": 51.0318418, "lon": 4.0914824},
+        {"label": "first_selected_30", "lat": 51.0318247, "lon": 4.0917542},
+        {"label": "confirmed_30", "lat": 51.0318154, "lon": 4.0920090}
+      ]
+    },
+    {
+      "name": "wieze",
+      "bbox": [4.078, 50.977, 4.089, 50.984],
+      "anchors": [
+        {"label": "ambiguous_201439", "lat": 50.9807187, "lon": 4.0831841},
+        {"label": "ambiguous_201443", "lat": 50.9807276, "lon": 4.0826564},
+        {"label": "first_clean_30", "lat": 50.9807115, "lon": 4.0823878},
+        {"label": "announced_30", "lat": 50.9806575, "lon": 4.0821428}
+      ]
+    },
+    {
+      "name": "steven",
+      "bbox": [4.103, 50.967, 4.112, 50.975],
+      "anchors": [
+        {"label": "wrong_90_selected", "lat": 50.9705857, "lon": 4.1079010},
+        {"label": "wrong_90_announced", "lat": 50.9707056, "lon": 4.1076901}
+      ]
+    },
+    {
+      "name": "gijzegem",
+      "bbox": [4.046, 50.981, 4.055, 50.989],
+      "anchors": [
+        {"label": "first_pass_30", "lat": 50.9863559, "lon": 4.0473704},
+        {"label": "return_30", "lat": 50.9845405, "lon": 4.0505517}
+      ]
+    }
+  ]
+}

@@ -9,6 +9,7 @@ from awv_osm_crosswalk import CrosswalkIndex
 
 
 class CrosswalkTests(unittest.TestCase):
+    # Research guardrails for systematic AWV/OSM lateral offsets.
     def test_constant_20m_offset_matches(self):
         osm = LineString([(0, 0), (100, 0)])
         awv = LineString([(0, 20), (100, 20)])

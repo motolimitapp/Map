@@ -65,6 +65,12 @@ class FallbackTests(unittest.TestCase):
         index=AwvIndex(collection(features))
         self.assertEqual(index.match(Point(X+50,Y),1,0)[0],0)
 
+    def test_f4a_string_speed_remains_unproven(self):
+        features=[feature(1,0,[(-30,0),(0,0)],50,"F1a"),feature(2,1,[(0,0),(100,0)],30,"F4a",zone='["SnelheidsZone"]')]
+        features[1]["properties"]["Snelheid"]="30"
+        index=AwvIndex(collection(features))
+        self.assertEqual(index.match(Point(X+50,Y),1,0)[0],0)
+
     def test_connected_multiline_preserves_direction(self):
         features=ordinary()
         features[1]["geometry"]["coordinates"]=[[LOCAL_TO_AWV(X,Y),LOCAL_TO_AWV(X+50,Y)],[LOCAL_TO_AWV(X+50,Y),LOCAL_TO_AWV(X+100,Y)]]

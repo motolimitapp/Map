@@ -1,29 +1,33 @@
 """Compare immutable OSM v3 and complete directed AWV evidence offline."""
 import argparse
-from collections import Counter
+from collections import Counter,defaultdict
 import datetime,hashlib,json,math,sqlite3
 from pathlib import Path
 from shapely.geometry import LineString,Point
 from enrich_awv import AwvIndex,TO_LOCAL,MAX_DISTANCE,MAX_ANGLE,SAMPLE_STEP
 from quality_policy import resolve,VARIABLE,CONFLICT,AMBIGUOUS
 from awv_snapshot import load_snapshot
+from awv_osm_crosswalk import CrosswalkIndex,MAX_DISTANCE as CROSSWALK_MAX_DISTANCE
 
 class EvidenceIndex(AwvIndex):
  def __init__(self,data):
-  super().__init__(data);self.edges=[]
+  super().__init__(data);self.edges=[];self.by_road=defaultdict(list)
   for line,entry in zip(self.lines,self.entries):
    a,b=line.coords;dx,dy=b[0]-a[0],b[1]-a[1]
    self.edges.append((a[0],a[1],b[0],b[1],dx,dy,math.hypot(dx,dy),entry))
+   self.by_road[entry[2]].append(len(self.edges)-1)
+  self.crosswalk=CrosswalkIndex([(line,entry[2],entry[1]) for line,entry in zip(self.lines,self.entries)])
  def at(self,point,dx,dy,indices):return self.at_xy(point.x,point.y,dx,dy,indices)
- def at_xy(self,x,y,dx,dy,indices,aligned=False):
+ def at_xy(self,x,y,dx,dy,indices,aligned=False,max_distance=MAX_DISTANCE,road_id=None):
   candidates=[];heading_length=math.hypot(dx,dy)
   for i in indices:
    ax,ay,bx,by,ex,ey,length,entry=self.edges[i];_,feature,road,first,last=entry
+   if road_id is not None and road!=road_id:continue
    projection=((x-ax)*ex+(y-ay)*ey)/(length*length)
    if (projection< -1e-7 and first) or (projection>1+1e-7 and last):continue
    if not aligned and (dx*ex+dy*ey)/(heading_length*length)<math.cos(math.radians(MAX_ANGLE)):continue
    t=max(0.,min(1.,projection));distance=math.hypot(x-ax-t*ex,y-ay-t*ey)
-   if distance<=MAX_DISTANCE:candidates.append((distance,i,feature,road))
+   if distance<=max_distance:candidates.append((distance,i,feature,road))
   if not candidates:return 'absent',0,'',''
   candidates.sort();best=candidates[0];near=[c for c in candidates if c[0]<=best[0]+4]
   evidence=[self.evidence[c[2]] for c in near];known=[e for e in evidence if e[0] in ('fixed','variable')]
@@ -37,10 +41,17 @@ class EvidenceIndex(AwvIndex):
   return next((e for e in known if e[2] in ('C43','ZC43')),known[0])
  def quality_pieces(self,row,states,can_fill):
   a,b=TO_LOCAL(row[2],row[1]),TO_LOCAL(row[4],row[3]);line=LineString((a,b))
-  indices=[int(i) for i in self.tree.query(line.buffer(MAX_DISTANCE))]
+  direct_indices=[int(i) for i in self.tree.query(line.buffer(MAX_DISTANCE))]
   original=(row[5],row[6],states[0],states[1],'','')
-  if not indices or line.length<1:return [(0.,1.,*original)]
-  if not any(self.evidence[self.entries[i][1]][0] in ('fixed','variable') for i in indices):return [(0.,1.,*original)]
+  if line.length<1:return [(0.,1.,*original)]
+  direct_usable=any(self.evidence[self.entries[i][1]][0] in ('fixed','variable') for i in direct_indices)
+  crosswalk_road=None;crosswalk_info=None;indices=direct_indices;match_distance=MAX_DISTANCE
+  if not direct_usable:
+   crosswalk_road,crosswalk_info=self.crosswalk.match(line)
+   if crosswalk_road is not None:
+    indices=[i for i in self.by_road.get(crosswalk_road,[]) if self.lines[i].distance(line)<=CROSSWALK_MAX_DISTANCE]
+    match_distance=CROSSWALK_MAX_DISTANCE
+  if not indices or not any(self.evidence[self.entries[i][1]][0] in ('fixed','variable') for i in indices):return [(0.,1.,*original)]
   dx,dy=b[0]-a[0],b[1]-a[1];cuts={0.,1.};length=math.hypot(dx,dy);cosine=math.cos(math.radians(MAX_ANGLE))
   aligned={d:[i for i in indices if d*(dx*self.edges[i][4]+dy*self.edges[i][5])/(length*self.edges[i][6])>=cosine] for d in (1,-1)}
   for i in indices:
@@ -52,7 +63,7 @@ class EvidenceIndex(AwvIndex):
    results=[]
    for d,osm,oldstate in ((1,row[5],states[0]),(-1,row[6],states[1])):
     if row[7] and d==-1:results.append((osm,oldstate,''));continue
-    samples=[self.at_xy(a[0]+dx*(lo+(hi-lo)*f),a[1]+dy*(lo+(hi-lo)*f),dx*d,dy*d,aligned[d],True) for f in (.1,.5,.9)]
+    samples=[self.at_xy(a[0]+dx*(lo+(hi-lo)*f),a[1]+dy*(lo+(hi-lo)*f),dx*d,dy*d,aligned[d],True,match_distance,crosswalk_road if not direct_usable else None) for f in (.1,.5,.9)]
     resolved=[resolve(osm,oldstate,e,can_fill) for e in samples]
     if all(r==resolved[0] for r in resolved):value,state=resolved[0]
     else:value,state=0,VARIABLE if any(r[1]==VARIABLE for r in resolved) else AMBIGUOUS

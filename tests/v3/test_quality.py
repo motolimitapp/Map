@@ -96,6 +96,30 @@ class PolicyTests(unittest.TestCase):
   pieces=index.quality_pieces((1,lat1,lon1,lat2,lon2,50,50,0,'Testweg'),(OSM,OSM),True)
   self.assertTrue(all(p[2]==0 and p[4]==CONFLICT for p in pieces))
 
+ def test_same_road_zone30_precedes_generic_builtup_50(self):
+  from test_awv import feature,collection,X,Y
+  from build_quality_map import EvidenceIndex
+  from enrich_awv import FROM_LOCAL
+  index=EvidenceIndex(collection([
+   feature(1,0,[(-30,2),(100,2)],50,'F1a'),
+   feature(1,0,[(-30,3),(100,3)],30,'F4a',zone='["SnelheidsZone","BebouwdeKom"]')
+  ]))
+  lon1,lat1=FROM_LOCAL(X+10,Y);lon2,lat2=FROM_LOCAL(X+90,Y)
+  pieces=index.quality_pieces((1,lat1,lon1,lat2,lon2,0,0,0,'Testweg'),(MISSING,MISSING),True)
+  self.assertTrue(all(p[2]==30 and p[3]==30 for p in pieces))
+
+ def test_zone30_does_not_override_other_road_builtup_50(self):
+  from test_awv import feature,collection,X,Y
+  from build_quality_map import EvidenceIndex
+  from enrich_awv import FROM_LOCAL
+  index=EvidenceIndex(collection([
+   feature(1,0,[(-30,2),(100,2)],50,'F1a'),
+   feature(2,0,[(-30,3),(100,3)],30,'F4a',zone='["SnelheidsZone","BebouwdeKom"]')
+  ]))
+  lon1,lat1=FROM_LOCAL(X+10,Y);lon2,lat2=FROM_LOCAL(X+90,Y)
+  pieces=index.quality_pieces((1,lat1,lon1,lat2,lon2,0,0,0,'Testweg'),(MISSING,MISSING),True)
+  self.assertTrue(any(p[4]==AMBIGUOUS or p[5]==AMBIGUOUS for p in pieces))
+
  def test_split_same_predecessor(self):
   from test_awv import feature,collection,X,Y
   from build_quality_map import EvidenceIndex

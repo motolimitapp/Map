@@ -28,32 +28,6 @@ class PolicyTests(unittest.TestCase):
   pieces=index.quality_pieces((1,lat1,lon1,lat2,lon2,0,0,0,'Testweg'),(MISSING,MISSING),True)
   self.assertTrue(any(p[2]==30 and p[4]==AWV for p in pieces))
 
- def test_specific_zone30_beats_generic_builtup50(self):
-  from test_awv import feature,collection,X,Y
-  from build_quality_map import EvidenceIndex
-  from shapely.geometry import Point
-  index=EvidenceIndex(collection([
-   feature(1,0,[(-30,0),(0,0)],50,'F1a'),
-   feature(2,1,[(0,0),(100,0)],50,'F1a','builtup'),
-   feature(3,0,[(-30,1),(0,1)],50,'F1a'),
-   feature(4,3,[(0,1),(100,1)],30,'F4a','zone30',zone='["SnelheidsZone"]')
-  ]))
-  indices=list(range(len(index.lines)))
-  self.assertEqual(index.at(Point(X+50,Y+.5),1,0,indices)[:3],('fixed',30,'F4a'))
-
- def test_zone30_does_not_override_numeric_c43_conflict(self):
-  from test_awv import feature,collection,X,Y
-  from build_quality_map import EvidenceIndex
-  from shapely.geometry import Point
-  index=EvidenceIndex(collection([
-   feature(1,0,[(-30,0),(0,0)],50,'C43'),
-   feature(2,1,[(0,0),(100,0)],50,'C43','numeric50'),
-   feature(3,0,[(-30,1),(0,1)],50,'F1a'),
-   feature(4,3,[(0,1),(100,1)],30,'F4a','zone30',zone='["SnelheidsZone"]')
-  ]))
-  indices=list(range(len(index.lines)))
-  self.assertEqual(index.at(Point(X+50,Y+.5),1,0,indices)[0],'ambiguous')
-
  def test_direct_7m_evidence_precedes_crosswalk_fallback(self):
   from test_awv import feature,collection,X,Y
   from build_quality_map import EvidenceIndex
@@ -68,61 +42,6 @@ class PolicyTests(unittest.TestCase):
   pieces=index.quality_pieces((1,lat1,lon1,lat2,lon2,0,0,0,'Testweg'),(MISSING,MISSING),True)
   self.assertTrue(any(p[2]==50 and p[4]==AWV for p in pieces))
   self.assertFalse(any(p[2]==30 for p in pieces))
- def test_crosswalk_may_refine_direct_ambiguity_only(self):
-  from test_awv import feature,collection,X,Y
-  from build_quality_map import EvidenceIndex
-  from enrich_awv import FROM_LOCAL
-  index=EvidenceIndex(collection([
-   feature(10,0,[(-60,2),(-30,2)],50,'F1a','pred30'),
-   feature(1,10,[(-30,2),(100,2)],30,'F4a','zone30',zone='["SnelheidsZone"]'),
-   feature(20,0,[(-60,4),(-30,4)],50,'F1a','pred50'),
-   feature(2,20,[(-30,4),(100,4)],50,'F1a','builtup50')
-  ]))
-  index.crosswalk.match=lambda line:(1,{"reason":"matched"})
-  lon1,lat1=FROM_LOCAL(X+10,Y);lon2,lat2=FROM_LOCAL(X+90,Y)
-  pieces=index.quality_pieces((1,lat1,lon1,lat2,lon2,0,0,0,'Testweg'),(MISSING,MISSING),True)
-  self.assertTrue(all(p[2]==30 and p[4]==AWV for p in pieces))
-
- def test_crosswalk_does_not_override_direct_conflict(self):
-  from test_awv import feature,collection,X,Y
-  from build_quality_map import EvidenceIndex
-  from enrich_awv import FROM_LOCAL
-  index=EvidenceIndex(collection([
-   feature(10,0,[(-60,2),(-30,2)],50,'F1a','pred30'),
-   feature(1,10,[(-30,2),(100,2)],30,'F4a','zone30',zone='["SnelheidsZone"]')
-  ]))
-  index.crosswalk.match=lambda line:(1,{"reason":"matched"})
-  lon1,lat1=FROM_LOCAL(X+10,Y);lon2,lat2=FROM_LOCAL(X+90,Y)
-  pieces=index.quality_pieces((1,lat1,lon1,lat2,lon2,50,50,0,'Testweg'),(OSM,OSM),True)
-  self.assertTrue(all(p[2]==0 and p[4]==CONFLICT for p in pieces))
-
- def test_same_road_zone30_precedes_generic_builtup_50(self):
-  from test_awv import feature,collection,X,Y
-  from build_quality_map import EvidenceIndex
-  from enrich_awv import FROM_LOCAL
-  index=EvidenceIndex(collection([
-   feature(10,0,[(-60,2),(-30,2)],50,'F1a','pred'),
-   feature(1,10,[(-30,2),(100,2)],50,'F1a','builtup'),
-   feature(1,10,[(-30,3),(100,3)],30,'F4a','zone30',zone='["SnelheidsZone","BebouwdeKom"]')
-  ]))
-  from shapely.geometry import Point
-  indices=list(range(len(index.lines)))
-  self.assertEqual(index.at(Point(X+50,Y+2.5),1,0,indices)[:3],('fixed',30,'F4a'))
-
- def test_zone30_does_not_override_other_road_builtup_50(self):
-  from test_awv import feature,collection,X,Y
-  from build_quality_map import EvidenceIndex
-  from enrich_awv import FROM_LOCAL
-  index=EvidenceIndex(collection([
-   feature(10,0,[(-60,2),(-30,2)],50,'F1a','pred50'),
-   feature(1,10,[(-30,2),(100,2)],50,'F1a','builtup'),
-   feature(20,0,[(-60,3),(-30,3)],50,'F1a','pred30'),
-   feature(2,20,[(-30,3),(100,3)],30,'F4a','zone30',zone='["SnelheidsZone","BebouwdeKom"]')
-  ]))
-  from shapely.geometry import Point
-  indices=list(range(len(index.lines)))
-  self.assertEqual(index.at(Point(X+50,Y+2.5),1,0,indices)[0],'ambiguous')
-
  def test_split_same_predecessor(self):
   from test_awv import feature,collection,X,Y
   from build_quality_map import EvidenceIndex

@@ -197,7 +197,7 @@ def main():
                 samples = []
                 for index, href in enumerate(hrefs[:sample_limit]):
                     try:
-                        sample_raw, sample_type = fetch(href)
+                        sample_raw, sample_type = fetch(href, timeout=15)
                         sample_name = f"dataset-{index:03d}.xml"
                         (sample_dir / sample_name).write_bytes(sample_raw)
                         samples.append({

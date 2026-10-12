@@ -91,11 +91,19 @@ jobs:
       - name: Install crosswalk dependencies
         run: python -m pip install --disable-pip-version-check -r requirements-v3.txt
       - name: Download live MotoLimiet v3 map
+        id: live_map
         env:
           GH_TOKEN: ${{ github.token }}
         shell: bash
         run: |
           set -euo pipefail
+          if ! gh release view map-v3-live --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo "available=false" >> "$GITHUB_OUTPUT"
+            printf '%s\n' '{"status":"unavailable","reason":"map-v3-live GitHub Release does not exist yet"}' > live-crosswalk-report.json
+            printf '%s\n' '{"status":"unavailable"}' > live-manifest.json
+            exit 0
+          fi
+          echo "available=true" >> "$GITHUB_OUTPUT"
           mkdir live-release
           gh release download map-v3-live --repo "$GITHUB_REPOSITORY" --dir live-release --pattern manifest.json --pattern 'belgium-limits-*.db.gz'
           cp live-release/manifest.json live-manifest.json
@@ -107,8 +115,10 @@ jobs:
               shutil.copyfileobj(src,dst,1024*1024)
           PYTHON
       - name: Validate live Dendermonde and Wieze crosswalk
+        if: steps.live_map.outputs.available == 'true'
         run: PYTHONPATH=tools/v3 python tools/v3/validate_live_crosswalk.py live-map.db tools/v3/probe-cases-20261012.json live-crosswalk-report.json
       - name: Upload live crosswalk report
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: live-crosswalk-${{ github.run_id }}-${{ github.run_attempt }}

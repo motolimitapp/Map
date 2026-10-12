@@ -30,7 +30,15 @@ class EvidenceIndex(AwvIndex):
    if distance<=max_distance:candidates.append((distance,i,feature,road))
   if not candidates:return 'absent',0,'',''
   candidates.sort();best=candidates[0];near=[c for c in candidates if c[0]<=best[0]+4]
-  evidence=[self.evidence[c[2]] for c in near];known=[e for e in evidence if e[0] in ('fixed','variable')]
+  evidence=[self.evidence[c[2]] for c in near]
+  # Within one directed AWV road, an explicit validated F4a Zone30 is
+  # more specific than generic F1a/F1b built-up-area 50 context.
+  # Never apply this precedence across different Wegsegment_ID values.
+  zone30_roads={candidate[3] for candidate,e in zip(near,evidence) if e[0]=='fixed' and e[1]==30 and e[2]=='F4a'}
+  if zone30_roads:
+   filtered=[(candidate,e) for candidate,e in zip(near,evidence) if not (candidate[3] in zone30_roads and e[0]=='fixed' and e[1]==50 and e[2] in ('F1a','F1b'))]
+   near=[pair[0] for pair in filtered];evidence=[pair[1] for pair in filtered];best=near[0]
+  known=[e for e in evidence if e[0] in ('fixed','variable')]
   if not known:return 'unproven',0,'',best[2]
   if any(e[0]=='variable' for e in known):return next(e for e in known if e[0]=='variable')
   fixed=[e for e in known if e[0]=='fixed']

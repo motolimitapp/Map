@@ -18,12 +18,18 @@ LOCAL_TO_AWV=Transformer.from_crs(31370,3857,always_xy=True).transform
 X,Y=TO_LOCAL(4.07,51.03)
 
 
-def feature(road,previous,coords,value=50,sign="F1a",suffix=""):
-    return dict(type="Feature",id=f"{road}-{previous}-{suffix}",geometry=dict(type="MultiLineString",coordinates=[[LOCAL_TO_AWV(X+x,Y+y) for x,y in coords]]),properties=dict(Wegsegment_ID=road,Vorige_wegsegment_ID=previous,Snelheid=value,Bepalend_bord=sign))
+def feature(road,previous,coords,value=50,sign="F1a",suffix="",zone=None):
+    properties=dict(Wegsegment_ID=road,Vorige_wegsegment_ID=previous,Snelheid=value,Bepalend_bord=sign)
+    if zone is not None:
+        properties["Zone"]=zone
+    return dict(type="Feature",id=f"{road}-{previous}-{suffix}",geometry=dict(type="MultiLineString",coordinates=[[LOCAL_TO_AWV(X+x,Y+y) for x,y in coords]]),properties=properties)
 
 
-def collection(features):
-    return dict(type="FeatureCollection",crs={"name":"EPSG:3857"},numberMatched=len(features),features=features)
+def collection(features,zone30_bidirectional_road_ids=None):
+    data=dict(type="FeatureCollection",crs={"name":"EPSG:3857"},numberMatched=len(features),features=features)
+    if zone30_bidirectional_road_ids is not None:
+        data["motolimiet_snapshot"]={"zone30_bidirectional_road_ids":list(zone30_bidirectional_road_ids)}
+    return data
 
 
 def ordinary():
@@ -46,6 +52,56 @@ class FallbackTests(unittest.TestCase):
         index=AwvIndex(collection(ordinary()))
         self.assertEqual(index.match(Point(X+50,Y),1,0)[0],50)
         self.assertEqual(index.match(Point(X+50,Y),-1,0)[0],70)
+
+# Research coverage: conservative AWV F4a-derived Zone 30 evidence and dedicated Zone30 context.\n    def test_f4a_zone30_is_usable_only_with_zone_evidence(self):
+        features=[feature(1,0,[(-30,0),(0,0)],50,"F1a"),feature(2,1,[(0,0),(100,0)],30,"F4a",zone='["SnelheidsZone", "BebouwdeKom"]')]
+        index=AwvIndex(collection(features))
+        self.assertEqual(index.match(Point(X+50,Y),1,0)[0],30)
+
+    def test_f4a_without_zone_marker_remains_unproven(self):
+        features=[feature(1,0,[(-30,0),(0,0)],50,"F1a"),feature(2,1,[(0,0),(100,0)],30,"F4a")]
+        index=AwvIndex(collection(features))
+        self.assertEqual(index.match(Point(X+50,Y),1,0)[0],0)
+
+    def test_f4a_wrong_speed_remains_unproven(self):
+        features=[feature(1,0,[(-30,0),(0,0)],50,"F1a"),feature(2,1,[(0,0),(100,0)],50,"F4a",zone='["SnelheidsZone"]')]
+        index=AwvIndex(collection(features))
+        self.assertEqual(index.match(Point(X+50,Y),1,0)[0],0)
+
+    def test_f4a_string_speed_remains_unproven(self):
+        features=[feature(1,0,[(-30,0),(0,0)],50,"F1a"),feature(2,1,[(0,0),(100,0)],30,"F4a",zone='["SnelheidsZone"]')]
+        features[1]["properties"]["Snelheid"]="30"
+        index=AwvIndex(collection(features))
+        self.assertEqual(index.match(Point(X+50,Y),1,0)[0],0)
+
+    def test_dedicated_zone30_context_suppresses_same_group_generic_f1a(self):
+        features=[
+            feature(10,0,[(-60,0),(-30,0)],50,"F1a","pred"),
+            feature(1,10,[(-30,0),(100,0)],50,"F1a","builtup"),
+            feature(1,10,[(-30,1),(100,1)],30,"F4a","zone30",zone='["SnelheidsZone","BebouwdeKom"]')
+        ]
+        index=AwvIndex(collection(features,[1]))
+        self.assertEqual(index.match(Point(X+50,Y+.5),1,0)[0],30)
+        self.assertGreater(index.stats["zone30_context_suppressed_features"],0)
+
+    def test_without_dedicated_zone30_context_same_group_stays_ambiguous(self):
+        features=[
+            feature(10,0,[(-60,0),(-30,0)],50,"F1a","pred"),
+            feature(1,10,[(-30,0),(100,0)],50,"F1a","builtup"),
+            feature(1,10,[(-30,1),(100,1)],30,"F4a","zone30",zone='["SnelheidsZone","BebouwdeKom"]')
+        ]
+        index=AwvIndex(collection(features))
+        self.assertEqual(index.match(Point(X+50,Y+.5),1,0)[0],0)
+
+    def test_zone30_context_does_not_suppress_other_road_f1a(self):
+        features=[
+            feature(10,0,[(-60,0),(-30,0)],50,"F1a","pred50"),
+            feature(1,10,[(-30,0),(100,0)],50,"F1a","builtup"),
+            feature(20,0,[(-60,1),(-30,1)],50,"F1a","pred30"),
+            feature(2,20,[(-30,1),(100,1)],30,"F4a","zone30",zone='["SnelheidsZone","BebouwdeKom"]')
+        ]
+        index=AwvIndex(collection(features,[2]))
+        self.assertEqual(index.match(Point(X+50,Y+.5),1,0)[0],0)
 
     def test_connected_multiline_preserves_direction(self):
         features=ordinary()

@@ -18,8 +18,11 @@ LOCAL_TO_AWV=Transformer.from_crs(31370,3857,always_xy=True).transform
 X,Y=TO_LOCAL(4.07,51.03)
 
 
-def feature(road,previous,coords,value=50,sign="F1a",suffix=""):
-    return dict(type="Feature",id=f"{road}-{previous}-{suffix}",geometry=dict(type="MultiLineString",coordinates=[[LOCAL_TO_AWV(X+x,Y+y) for x,y in coords]]),properties=dict(Wegsegment_ID=road,Vorige_wegsegment_ID=previous,Snelheid=value,Bepalend_bord=sign))
+def feature(road,previous,coords,value=50,sign="F1a",suffix="",zone=None):
+    properties=dict(Wegsegment_ID=road,Vorige_wegsegment_ID=previous,Snelheid=value,Bepalend_bord=sign)
+    if zone is not None:
+        properties["Zone"]=zone
+    return dict(type="Feature",id=f"{road}-{previous}-{suffix}",geometry=dict(type="MultiLineString",coordinates=[[LOCAL_TO_AWV(X+x,Y+y) for x,y in coords]]),properties=properties)
 
 
 def collection(features):
@@ -47,7 +50,22 @@ class FallbackTests(unittest.TestCase):
         self.assertEqual(index.match(Point(X+50,Y),1,0)[0],50)
         self.assertEqual(index.match(Point(X+50,Y),-1,0)[0],70)
 
-    def test_f4a_zone30_is_usable_only_with_zone_evidence(self):\n        features=[feature(1,0,[(-30,0),(0,0)],50,"F1a"),feature(2,1,[(0,0),(100,0)],30,"F4a",zone='["SnelheidsZone", "BebouwdeKom"]')]\n        index=AwvIndex(collection(features))\n        self.assertEqual(index.match(Point(X+50,Y),1,0)[0],30)\n\n    def test_f4a_without_zone_marker_remains_unproven(self):\n        features=[feature(1,0,[(-30,0),(0,0)],50,"F1a"),feature(2,1,[(0,0),(100,0)],30,"F4a")]\n        index=AwvIndex(collection(features))\n        self.assertEqual(index.match(Point(X+50,Y),1,0)[0],0)\n\n    def test_f4a_wrong_speed_remains_unproven(self):\n        features=[feature(1,0,[(-30,0),(0,0)],50,"F1a"),feature(2,1,[(0,0),(100,0)],50,"F4a",zone='["SnelheidsZone"]')]\n        index=AwvIndex(collection(features))\n        self.assertEqual(index.match(Point(X+50,Y),1,0)[0],0)\n\n    def test_connected_multiline_preserves_direction(self):
+    def test_f4a_zone30_is_usable_only_with_zone_evidence(self):
+        features=[feature(1,0,[(-30,0),(0,0)],50,"F1a"),feature(2,1,[(0,0),(100,0)],30,"F4a",zone='["SnelheidsZone", "BebouwdeKom"]')]
+        index=AwvIndex(collection(features))
+        self.assertEqual(index.match(Point(X+50,Y),1,0)[0],30)
+
+    def test_f4a_without_zone_marker_remains_unproven(self):
+        features=[feature(1,0,[(-30,0),(0,0)],50,"F1a"),feature(2,1,[(0,0),(100,0)],30,"F4a")]
+        index=AwvIndex(collection(features))
+        self.assertEqual(index.match(Point(X+50,Y),1,0)[0],0)
+
+    def test_f4a_wrong_speed_remains_unproven(self):
+        features=[feature(1,0,[(-30,0),(0,0)],50,"F1a"),feature(2,1,[(0,0),(100,0)],50,"F4a",zone='["SnelheidsZone"]')]
+        index=AwvIndex(collection(features))
+        self.assertEqual(index.match(Point(X+50,Y),1,0)[0],0)
+
+    def test_connected_multiline_preserves_direction(self):
         features=ordinary()
         features[1]["geometry"]["coordinates"]=[[LOCAL_TO_AWV(X,Y),LOCAL_TO_AWV(X+50,Y)],[LOCAL_TO_AWV(X+50,Y),LOCAL_TO_AWV(X+100,Y)]]
         index=AwvIndex(collection(features))

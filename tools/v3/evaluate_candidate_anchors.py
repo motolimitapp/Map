@@ -17,6 +17,13 @@ def main():
     con=sqlite3.connect(f"file:{pathlib.Path(a.db).resolve()}?mode=ro",uri=True)
     report={"metadata":dict(con.execute("SELECT key,value FROM metadata")),"cases":[]}
     evidence={}
+    awv_properties={}
+    db_name=pathlib.Path(a.db).name
+    region=db_name.split("-quality.db")[0] if db_name.endswith("-quality.db") else ""
+    snapshot=pathlib.Path(f"awv-{region}.json") if region else None
+    if snapshot and snapshot.exists():
+        raw=json.loads(snapshot.read_text(encoding="utf-8"))
+        awv_properties={str(feature.get("id")):(feature.get("properties") or {}) for feature in raw.get("features",[])}
     try:
         for row in con.execute("SELECT id,feature_id,kind,speed,sign FROM awv_features"):
             evidence[str(row[0])]={"feature_id":row[1],"kind":row[2],"speed":row[3],"sign":row[4]}
@@ -45,8 +52,8 @@ def main():
                             "forward_state":row[9],"backward_state":row[10],
                             "osm_forward":row[11],"osm_backward":row[12],
                             "forward_evidence":row[13],"backward_evidence":row[14],
-                            "forward_evidence_detail":[evidence[x] for x in str(row[13]).split("|") if x in evidence],
-                            "backward_evidence_detail":[evidence[x] for x in str(row[14]).split("|") if x in evidence]
+                            "forward_evidence_detail":[dict(evidence[x],awv_properties=awv_properties.get(evidence[x]["feature_id"],{})) for x in str(row[13]).split("|") if x in evidence],
+                            "backward_evidence_detail":[dict(evidence[x],awv_properties=awv_properties.get(evidence[x]["feature_id"],{})) for x in str(row[14]).split("|") if x in evidence]
                         })
                 candidates.sort(key=lambda x:x["distance_m"])
                 cr["anchors"].append({

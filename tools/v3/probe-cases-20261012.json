@@ -1,0 +1,45 @@
+{
+  "wfs_endpoint": "https://opendata.apps.mow.vlaanderen.be/opendata-geoserver/awv/ows",
+  "layers": {
+    "speed": "awv:Afgeleide_snelheidsregimes"
+  },
+  "count": 1000,
+  "cases": [
+    {
+      "name": "dendermonde",
+      "bbox": [
+        4.086,
+        51.029,
+        4.096,
+        51.035
+      ]
+    },
+    {
+      "name": "wieze",
+      "bbox": [
+        4.078,
+        50.977,
+        4.089,
+        50.984
+      ]
+    },
+    {
+      "name": "steven",
+      "bbox": [
+        4.103,
+        50.967,
+        4.112,
+        50.975
+      ]
+    },
+    {
+      "name": "gijzegem",
+      "bbox": [
+        4.046,
+        50.981,
+        4.055,
+        50.989
+      ]
+    }
+  ]
+}

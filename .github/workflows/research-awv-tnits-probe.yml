@@ -175,21 +175,33 @@ jobs:
           python-version: "3.12"
       - name: Install v3 dependencies
         run: python -m pip install --disable-pip-version-check -r requirements-v3.txt
-      - name: Download regional OSM XML
-        run: curl --fail --location --retry 3 --connect-timeout 20 --max-time 300 -o region.osm 'https://api.openstreetmap.org/api/0.6/map?bbox=4.075,50.976,4.097,51.036'
-      - name: Download regional AWV snapshot
-        run: python tools/v3/download_awv_region.py awv-region.json --bbox 4.075,50.976,4.097,51.036
-      - name: Build regional OSM database
-        run: python tools/v3/build_belgium_db.py region.osm region-osm.db
-      - name: Build regional candidate
-        run: python tools/v3/build_quality_map.py region-osm.db awv-region.json region-quality.db regional-quality-report.json --workers 1 --checkpoint-every 5000
+      - name: Download small OSM XML windows
+        run: |
+          curl --fail --location --retry 3 --connect-timeout 20 --max-time 300 -o dendermonde.osm 'https://api.openstreetmap.org/api/0.6/map?bbox=4.086,51.029,4.096,51.035'
+          curl --fail --location --retry 3 --connect-timeout 20 --max-time 300 -o wieze.osm 'https://api.openstreetmap.org/api/0.6/map?bbox=4.078,50.977,4.089,50.984'
+      - name: Download regional AWV snapshots
+        run: |
+          python tools/v3/download_awv_region.py awv-dendermonde.json --bbox 4.086,51.029,4.096,51.035
+          python tools/v3/download_awv_region.py awv-wieze.json --bbox 4.078,50.977,4.089,50.984
+      - name: Build small OSM databases
+        run: |
+          python tools/v3/build_belgium_db.py dendermonde.osm dendermonde-osm.db
+          python tools/v3/build_belgium_db.py wieze.osm wieze-osm.db
+      - name: Build regional candidates
+        run: |
+          python tools/v3/build_quality_map.py dendermonde-osm.db awv-dendermonde.json dendermonde-quality.db dendermonde-quality-report.json --workers 1 --checkpoint-every 5000
+          python tools/v3/build_quality_map.py wieze-osm.db awv-wieze.json wieze-quality.db wieze-quality-report.json --workers 1 --checkpoint-every 5000
       - name: Evaluate Dendermonde and Wieze anchors
-        run: python tools/v3/evaluate_candidate_anchors.py region-quality.db tools/v3/probe-cases-20261012.json regional-anchor-report.json
+        run: |
+          python tools/v3/evaluate_candidate_anchors.py dendermonde-quality.db tools/v3/probe-cases-20261012.json dendermonde-anchor-report.json
+          python tools/v3/evaluate_candidate_anchors.py wieze-quality.db tools/v3/probe-cases-20261012.json wieze-anchor-report.json
       - name: Upload regional candidate report
         uses: actions/upload-artifact@v4
         with:
           name: regional-crosswalk-zone30-${{ github.run_id }}-${{ github.run_attempt }}
           path: |
-            regional-quality-report.json
-            regional-anchor-report.json
+            dendermonde-quality-report.json
+            dendermonde-anchor-report.json
+            wieze-quality-report.json
+            wieze-anchor-report.json
           retention-days: 14

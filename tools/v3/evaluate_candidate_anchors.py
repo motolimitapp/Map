@@ -23,7 +23,20 @@ def main():
     snapshot=pathlib.Path(f"awv-{region}.json") if region else None
     if snapshot and snapshot.exists():
         raw=json.loads(snapshot.read_text(encoding="utf-8"))
-        awv_properties={str(feature.get("id")):(feature.get("properties") or {}) for feature in raw.get("features",[])}
+        awv_properties={}
+        for feature in raw.get("features",[]):
+            props=dict(feature.get("properties") or {})
+            geom=feature.get("geometry") or {}
+            coords=[]
+            if geom.get("type")=="MultiLineString":
+                coords=[point for line in geom.get("coordinates",[]) for point in line]
+            elif geom.get("type")=="LineString":
+                coords=list(geom.get("coordinates",[]))
+            if coords:
+                props["_geometry_first"]=coords[0]
+                props["_geometry_last"]=coords[-1]
+                props["_geometry_points"]=len(coords)
+            awv_properties[str(feature.get("id"))]=props
     try:
         for row in con.execute("SELECT id,feature_id,kind,speed,sign FROM awv_features"):
             evidence[str(row[0])]={"feature_id":row[1],"kind":row[2],"speed":row[3],"sign":row[4]}

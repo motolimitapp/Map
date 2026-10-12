@@ -177,6 +177,19 @@ def parse_tnits(data,radius):
   if len(refs)>=80:break
  return {"xml_root":local(root.tag),"bytes":len(data),"tag_counts":dict(sorted(counts.items())),"urls":sorted(set(urls))[:100],"index_sample":refs},near
 
+def inspect_tnits_dataset(url):
+ data=get_bytes(url,"application/xml,text/xml,*/*",120)
+ root=ET.fromstring(data)
+ sample=[];counts={}
+ for e in root.iter():
+  name=local(e.tag);counts[name]=counts.get(name,0)+1
+  item={"tag":name}
+  if e.attrib:item["attrs"]=dict(e.attrib)
+  if e.text and e.text.strip() and len(e.text.strip())<500:item["text"]=e.text.strip()
+  if len(item)>1:sample.append(item)
+  if len(sample)>=120:break
+ return {"url":url,"bytes":len(data),"root":local(root.tag),"tag_counts":dict(sorted(counts.items())),"sample":sample}
+
 def to_markdown(report):
  lines=["# MotoLimiet raw AWV / TN-ITS evidence probe","",
         "No resolver rules are applied. Missing evidence is not evidence of absence.","",
@@ -218,6 +231,11 @@ def run(output,radius):
  try:
   res=tnits_resource();data=get_bytes(res["url"],"application/xml,text/xml,*/*",180);meta,near=parse_tnits(data,radius)
   meta["resource"]={k:res.get(k) for k in ("name","format","url","last_modified")}
+  dataset_urls=[u for u in meta.get("urls",[]) if "/tn-its/rest/dataset/" in u][:3]
+  meta["dataset_samples"]=[]
+  for u in dataset_urls:
+   try:meta["dataset_samples"].append(inspect_tnits_dataset(u))
+   except Exception as exc:meta["dataset_samples"].append({"url":u,"error":type(exc).__name__+": "+str(exc)})
   tn={"metadata":meta,"nearby":near}
  except Exception as exc:tn={"metadata":{"error":type(exc).__name__+": "+str(exc)},"nearby":[]}
  report={"format":"motolimiet-raw-evidence-1","retrieved_utc":dt.datetime.now(dt.timezone.utc).isoformat(),

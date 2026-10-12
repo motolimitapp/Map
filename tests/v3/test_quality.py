@@ -105,9 +105,9 @@ class PolicyTests(unittest.TestCase):
    feature(1,10,[(-30,2),(100,2)],50,'F1a','builtup'),
    feature(1,10,[(-30,3),(100,3)],30,'F4a','zone30',zone='["SnelheidsZone","BebouwdeKom"]')
   ]))
-  lon1,lat1=FROM_LOCAL(X+10,Y);lon2,lat2=FROM_LOCAL(X+90,Y)
-  pieces=index.quality_pieces((1,lat1,lon1,lat2,lon2,0,0,0,'Testweg'),(MISSING,MISSING),True)
-  self.assertTrue(all(p[2]==30 and p[3]==30 for p in pieces))
+  from shapely.geometry import Point
+  indices=list(range(len(index.lines)))
+  self.assertEqual(index.at(Point(X+50,Y+2.5),1,0,indices)[:3],('fixed',30,'F4a'))
 
  def test_zone30_does_not_override_other_road_builtup_50(self):
   from test_awv import feature,collection,X,Y
@@ -119,9 +119,9 @@ class PolicyTests(unittest.TestCase):
    feature(20,0,[(-60,3),(-30,3)],50,'F1a','pred30'),
    feature(2,20,[(-30,3),(100,3)],30,'F4a','zone30',zone='["SnelheidsZone","BebouwdeKom"]')
   ]))
-  lon1,lat1=FROM_LOCAL(X+10,Y);lon2,lat2=FROM_LOCAL(X+90,Y)
-  pieces=index.quality_pieces((1,lat1,lon1,lat2,lon2,0,0,0,'Testweg'),(MISSING,MISSING),True)
-  self.assertTrue(any(p[4]==AMBIGUOUS or p[5]==AMBIGUOUS for p in pieces))
+  from shapely.geometry import Point
+  indices=list(range(len(index.lines)))
+  self.assertEqual(index.at(Point(X+50,Y+2.5),1,0,indices)[0],'ambiguous')
 
  def test_split_same_predecessor(self):
   from test_awv import feature,collection,X,Y

@@ -5,7 +5,7 @@ from pathlib import Path
 from shapely.geometry import LineString
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "tools/v3"))
-from awv_osm_crosswalk import CrosswalkIndex
+from awv_osm_crosswalk import CrosswalkIndex, classify_corridor
 
 
 class CrosswalkTests(unittest.TestCase):
@@ -59,3 +59,29 @@ class CrosswalkTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class CorridorTests(unittest.TestCase):
+    def item(self, sid, road):
+        return {"osm_segment_id": sid, "osm_way_id": sid * 10, "road_id": road, "start_xy": (0, 0), "end_xy": (1, 0), "info": {}}
+
+    def test_two_segment_same_road_run_is_accepted(self):
+        rows = classify_corridor([self.item(1, 100), self.item(2, 100)], min_run=2)
+        self.assertTrue(rows[0]["corridor_accepted"])
+        self.assertTrue(rows[1]["corridor_accepted"])
+
+    def test_isolated_match_is_rejected(self):
+        rows = classify_corridor([self.item(1, 100), self.item(2, None)], min_run=2)
+        self.assertFalse(rows[0]["corridor_accepted"])
+        self.assertEqual(rows[0]["corridor_reason"], "isolated_or_broken_run")
+
+    def test_road_id_switch_breaks_corridor(self):
+        rows = classify_corridor([self.item(1, 100), self.item(2, 200), self.item(3, 200)], min_run=2)
+        self.assertFalse(rows[0]["corridor_accepted"])
+        self.assertTrue(rows[1]["corridor_accepted"])
+        self.assertTrue(rows[2]["corridor_accepted"])
+
+    def test_unmatched_segment_breaks_run(self):
+        rows = classify_corridor([self.item(1, 100), self.item(2, None), self.item(3, 100)], min_run=2)
+        self.assertFalse(rows[0]["corridor_accepted"])
+        self.assertFalse(rows[2]["corridor_accepted"])

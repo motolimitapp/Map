@@ -1,0 +1,47 @@
+name: Probe AWV and TN-ITS evidence
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - tools/v3/probe_awv_tnits.py
+      - .github/workflows/probe-awv-tnits.yml
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+          cache: pip
+          cache-dependency-path: requirements-v3.txt
+
+      - name: Install dependencies
+        run: python -m pip install -r requirements-v3.txt
+
+      - name: Probe live AWV WFS and TN-ITS
+        run: python tools/v3/probe_awv_tnits.py --output evidence-report.json --radius-m 175
+
+      - name: Show human-readable report
+        if: always()
+        run: cat evidence-report.md || true
+
+      - name: Upload evidence report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: awv-tnits-evidence-${{ github.run_id }}-${{ github.run_attempt }}
+          retention-days: 14
+          if-no-files-found: error
+          path: |
+            evidence-report.json
+            evidence-report.md

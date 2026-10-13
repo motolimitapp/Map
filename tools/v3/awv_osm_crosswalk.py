@@ -1,0 +1,229 @@
+#!/usr/bin/env python3
+"""Research-only AWV/Wegenregister to OSM geometry crosswalk prototype.
+
+This module is intentionally conservative. It does not assign a speed limit.
+It only asks whether an OSM road segment can be associated with one AWV
+Wegsegment_ID despite a systematic lateral geometry offset.
+
+Acceptance requires:
+- persistent proximity at 3 samples along the OSM segment;
+- road-axis agreement within MAX_AXIS_ANGLE;
+- stable lateral distance across the samples;
+- a clear margin over competing AWV Wegsegment_ID candidates.
+
+Ambiguous or weak matches return no crosswalk.
+"""
+from collections import defaultdict
+import math
+
+from shapely.geometry import LineString, Point
+from shapely.strtree import STRtree
+
+MAX_DISTANCE = 40.0
+MAX_AXIS_ANGLE = 15.0
+MAX_DISTANCE_VARIATION = 8.0
+COMPETITOR_MARGIN = 5.0
+SAMPLES = (0.1, 0.5, 0.9)
+
+
+def _axis_error(ax, ay, bx, by):
+    la = math.hypot(ax, ay)
+    lb = math.hypot(bx, by)
+    if la < 1e-9 or lb < 1e-9:
+        return 180.0
+    cosine = abs((ax * bx + ay * by) / (la * lb))
+    cosine = max(-1.0, min(1.0, cosine))
+    return math.degrees(math.acos(cosine))
+
+
+class CrosswalkIndex:
+    def __init__(self, awv_lines):
+        """awv_lines: iterable of (LineString, wegsegment_id, feature_id)."""
+        self.lines = []
+        self.meta = []
+        for line, road_id, feature_id in awv_lines:
+            if not isinstance(line, LineString) or len(line.coords) < 2 or line.length < 1.0:
+                continue
+            self.lines.append(line)
+            self.meta.append((road_id, feature_id))
+        if not self.lines:
+            raise ValueError("No AWV lines")
+        self.tree = STRtree(self.lines)
+
+    def _sample_candidates(self, point, odx, ody):
+        by_road = {}
+        for raw_index in self.tree.query(point.buffer(MAX_DISTANCE)):
+            index = int(raw_index)
+            line = self.lines[index]
+            road_id, feature_id = self.meta[index]
+            coords = list(line.coords)
+            best = None
+            for a, b in zip(coords, coords[1:]):
+                ex, ey = b[0] - a[0], b[1] - a[1]
+                if _axis_error(odx, ody, ex, ey) > MAX_AXIS_ANGLE:
+                    continue
+                edge = LineString((a, b))
+                distance = float(point.distance(edge))
+                if distance > MAX_DISTANCE:
+                    continue
+                if best is None or distance < best[0]:
+                    best = (distance, feature_id)
+            if best is not None and (road_id not in by_road or best[0] < by_road[road_id][0]):
+                by_road[road_id] = best
+        return by_road
+
+    def match(self, osm_line):
+        if not isinstance(osm_line, LineString) or len(osm_line.coords) < 2 or osm_line.length < 3.0:
+            return None, {"reason": "invalid_osm_geometry"}
+
+        a, b = osm_line.coords[0], osm_line.coords[-1]
+        odx, ody = b[0] - a[0], b[1] - a[1]
+        sample_sets = [self._sample_candidates(osm_line.interpolate(f, normalized=True), odx, ody) for f in SAMPLES]
+        common = set(sample_sets[0])
+        for candidates in sample_sets[1:]:
+            common &= set(candidates)
+        if not common:
+            return None, {"reason": "no_persistent_candidate"}
+
+        scores = []
+        for road_id in common:
+            distances = [c[road_id][0] for c in sample_sets]
+            variation = max(distances) - min(distances)
+            if variation > MAX_DISTANCE_VARIATION:
+                continue
+            scores.append((sum(distances) / len(distances), variation, road_id, distances))
+
+        if not scores:
+            return None, {"reason": "offset_not_stable"}
+
+        scores.sort()
+        best = scores[0]
+        if len(scores) > 1 and scores[1][0] - best[0] < COMPETITOR_MARGIN:
+            return None, {
+                "reason": "competing_road_ids",
+                "best_road_id": best[2],
+                "best_mean_distance_m": round(best[0], 2),
+                "competitor_road_id": scores[1][2],
+                "competitor_mean_distance_m": round(scores[1][0], 2),
+            }
+
+        return best[2], {
+            "reason": "matched",
+            "road_id": best[2],
+            "mean_distance_m": round(best[0], 2),
+            "distance_variation_m": round(best[1], 2),
+            "sample_distances_m": [round(v, 2) for v in best[3]],
+        }
+
+
+def validate_corridor(segment_matches, min_run=2):
+    """Validate continuity across ordered OSM segments.
+
+    segment_matches: list of dicts with keys
+      osm_segment_id, osm_way_id, road_id, start_xy, end_xy, info
+
+    A usable corridor requires at least min_run consecutive matched segments
+    with the same AWV road_id. Single-segment matches are not promoted.
+    Segments that switch AWV road_id or are unmatched break the run.
+    """
+    accepted = set()
+    run = []
+    last_road = None
+    for item in segment_matches + [None]:
+        road = None if item is None else item.get("road_id")
+        if road is not None and road == last_road:
+            run.append(item)
+        else:
+            if last_road is not None and len(run) >= min_run:
+                accepted.update(x["osm_segment_id"] for x in run)
+            run = [] if item is None or road is None else [item]
+        last_road = road
+    return accepted
+
+
+def classify_corridor(segment_matches, min_run=2):
+    accepted = validate_corridor(segment_matches, min_run=min_run)
+    result = []
+    for item in segment_matches:
+        x = dict(item)
+        x["corridor_accepted"] = x.get("osm_segment_id") in accepted
+        if x.get("road_id") is None:
+            x["corridor_reason"] = "no_crosswalk"
+        elif x["corridor_accepted"]:
+            x["corridor_reason"] = "stable_run"
+        else:
+            x["corridor_reason"] = "isolated_or_broken_run"
+        result.append(x)
+    return result
+
+
+def _node_key(xy):
+    return (round(float(xy[0]), 3), round(float(xy[1]), 3))
+
+def validate_topology(matches, min_segments=2, min_length_m=25.0):
+    """Conservative graph gate over raw crosswalk results.
+
+    A segment is accepted only when it belongs to a connected component with:
+    - the same AWV Wegsegment_ID;
+    - the same OSM way id;
+    - the same non-empty OSM road name;
+    - at least min_segments segments;
+    - at least min_length_m total OSM geometry length.
+
+    This intentionally rejects isolated side streets and cross-junction hits.
+    """
+    groups = defaultdict(list)
+    for item in matches:
+        road_id = item.get("road_id")
+        way_id = item.get("osm_way_id")
+        name = (item.get("name") or "").strip()
+        if road_id is None or way_id is None or not name:
+            continue
+        groups[(road_id, way_id, name)].append(item)
+
+    accepted = set()
+    diagnostics = {}
+    for key, items in groups.items():
+        by_node = defaultdict(list)
+        for i, item in enumerate(items):
+            by_node[_node_key(item["start_xy"])].append(i)
+            by_node[_node_key(item["end_xy"])].append(i)
+
+        unseen = set(range(len(items)))
+        while unseen:
+            seed = unseen.pop()
+            component = {seed}
+            frontier = [seed]
+            while frontier:
+                current = frontier.pop()
+                item = items[current]
+                neighbours = set()
+                for node in (_node_key(item["start_xy"]), _node_key(item["end_xy"])):
+                    neighbours.update(by_node[node])
+                for neighbour in neighbours:
+                    if neighbour in unseen:
+                        unseen.remove(neighbour)
+                        component.add(neighbour)
+                        frontier.append(neighbour)
+
+            length = 0.0
+            for idx in component:
+                a = items[idx]["start_xy"]
+                b = items[idx]["end_xy"]
+                length += math.hypot(b[0] - a[0], b[1] - a[1])
+
+            component_ids = [items[idx]["osm_segment_id"] for idx in component]
+            ok = len(component) >= min_segments and length >= min_length_m
+            for sid in component_ids:
+                diagnostics[sid] = {
+                    "component_segments": len(component),
+                    "component_length_m": round(length, 2),
+                    "topology_accepted": ok,
+                    "road_id": key[0],
+                    "osm_way_id": key[1],
+                    "name": key[2],
+                }
+                if ok:
+                    accepted.add(sid)
+
+    return accepted, diagnostics

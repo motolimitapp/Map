@@ -1,0 +1,51 @@
+{
+  "source": "MotoLimiet diagnostic events 2026-10-13 + official AWV temporary Ooiebrug measure published 2025-03-20; rider observation Steven 2026-10-12",
+  "note": "A GPS anchor is not proof of sign-entry geometry. The official rule is conditional on continued validity of temporary works. Check its live validity before enforcing as a release gate.",
+  "anchors": [
+    {
+      "id": "ooiebrug-dendermonde-to-appels",
+      "date": "2026-10-13",
+      "lat": 51.0316199,
+      "lon": 4.0798655,
+      "bearing_deg": 251.8,
+      "road": "Gentsesteenweg",
+      "app_reported_kmh": 70,
+      "expected_kmh": 50,
+      "evidence_level": "official_directional",
+      "valid_from": "2025-03-24",
+      "reference_url": "https://wegenenverkeer.be/werken/tijdelijke-verkeersmaatregelen-op-de-ooiebrug-n406-dendermonde",
+      "reference_note": "Temporary 50 Dendermonde to Aalst until bridge repair/replacement; reconfirm status before production"
+    },
+    {
+      "id": "ooiebrug-approach",
+      "date": "2026-10-13",
+      "lat": 51.031898,
+      "lon": 4.0812214,
+      "bearing_deg": 254.5,
+      "road": "Gentsesteenweg",
+      "app_reported_kmh": 50,
+      "evidence_level": "unverified",
+      "reference_note": "Approach coordinates; 50 location already reported; exact zone boundary not proven"
+    },
+    {
+      "id": "dendermonde-zone30-anchor",
+      "date": "2026-10-12",
+      "lat": 51.0318247,
+      "lon": 4.0917542,
+      "bearing_deg": 94.7,
+      "road": "Kerkstraat",
+      "app_reported_kmh": 30,
+      "evidence_level": "unverified"
+    },
+    {
+      "id": "wieze-zone30-anchor",
+      "date": "2026-10-12",
+      "lat": 50.9806575,
+      "lon": 4.0821428,
+      "bearing_deg": 243.2,
+      "road": "Nieuwstraat",
+      "app_reported_kmh": 30,
+      "evidence_level": "unverified"
+    }
+  ]
+}

@@ -72,7 +72,7 @@ class RegressionAuditTests(unittest.TestCase):
     def test_fixture_is_research_only_and_directional(self):
         path=Path(__file__).resolve().parent/"fixtures"/"ride-regressions-20261013.json"
         data=json.loads(path.read_text(encoding="utf-8"))
-        self.assertGreaterEqual(len(data["anchors"]),3)
+        self.assertGreaterEqual(len(data["anchors"]),6)
         for row in data["anchors"]:
             self.assertIn(row["evidence_level"],("official_directional","rider_observation","unverified"))
             self.assertIn("bearing_deg",row)
@@ -80,6 +80,12 @@ class RegressionAuditTests(unittest.TestCase):
         bridge=next(x for x in data["anchors"] if x["id"]=="ooiebrug-dendermonde-to-appels")
         self.assertEqual((bridge["app_reported_kmh"],bridge["expected_kmh"]),(70,50))
         self.assertTrue(bridge["reference_url"].startswith("https://wegenenverkeer.be/"))
+        steven=next(x for x in data["anchors"] if x["id"]=="steven-source-conflict")
+        self.assertEqual(steven["evidence_level"],"rider_observation")
+        self.assertEqual((steven["app_reported_kmh"],steven["expected_kmh"]),(90,50))
+        gijzegem=next(x for x in data["anchors"] if x["id"]=="gijzegem-return-zone30")
+        self.assertEqual(gijzegem["evidence_level"],"unverified")
+        self.assertEqual(gijzegem["app_reported_kmh"],30)
 
 if __name__=="__main__":
     unittest.main()

@@ -1,6 +1,6 @@
 {
   "source": "MotoLimiet diagnostic events 2026-10-13 + official AWV temporary Ooiebrug measure published 2025-03-20; rider observation Steven 2026-10-12",
-  "note": "A GPS anchor is not proof of sign-entry geometry. The official rule is conditional on continued validity of temporary works. Check its live validity before enforcing as a release gate.",
+  "note": "A GPS anchor is not proof of sign-entry geometry. Ooiebrug official rule is conditional on continued validity of temporary works. Steven is deliberately unresolved rider/AWV conflict; Gijzegem map anchor is separate from the Android speech regression.",
   "anchors": [
     {
       "id": "ooiebrug-dendermonde-to-appels",
@@ -46,6 +46,29 @@
       "road": "Nieuwstraat",
       "app_reported_kmh": 30,
       "evidence_level": "unverified"
+    },
+    {
+      "id": "steven-source-conflict",
+      "date": "2026-10-12",
+      "lat": 50.9707056,
+      "lon": 4.1076901,
+      "bearing_deg": 198,
+      "road": "Steven",
+      "app_reported_kmh": 90,
+      "expected_kmh": 50,
+      "evidence_level": "rider_observation",
+      "reference_note": "Rider observed 50 on site; earlier AWV evidence may support 70. Treat as unresolved source conflict. Rider observation is not certified ground truth and must not publish 50 automatically."
+    },
+    {
+      "id": "gijzegem-return-zone30",
+      "date": "2026-10-12",
+      "lat": 50.9845405,
+      "lon": 4.0505517,
+      "bearing_deg": 315.6,
+      "road": "Pachthofstraat",
+      "app_reported_kmh": 30,
+      "evidence_level": "unverified",
+      "reference_note": "Return-pass map selected 30; Android diagnostic showed LIMIT_CHANGED 0->30 without AUDIO_ATTEMPT. Map anchor is unverified; speech regression is tested in Android VoiceQueue."
     }
   ]
 }

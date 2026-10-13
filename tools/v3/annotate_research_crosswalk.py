@@ -11,6 +11,7 @@ from pyproj import Transformer
 from shapely.geometry import LineString
 from awv_osm_crosswalk import CrosswalkIndex,validate_topology
 from validate_live_crosswalk import flatten_speed_features
+from research_directional_evidence import build_road_evidence,directional_summary
 from probe_official_evidence import bbox_to_31370,get_layer
 
 TO=Transformer.from_crs("EPSG:4326","EPSG:31370",always_xy=True)
@@ -49,7 +50,7 @@ def main():
     if capped:raise SystemExit("AWV WFS result capped")
     lines=flatten_speed_features(collection)
     idx=CrosswalkIndex(lines)
-    ev=evidence_by_road(collection)
+    ev=build_road_evidence(collection)
     db=sqlite3.connect(a.database)
     west,south,east,north=case["bbox"]
     rows=db.execute("""SELECT s.id,s.lat1,s.lon1,s.lat2,s.lon2,s.name,s.forward_kmh,s.backward_kmh,p.osm_way_id
@@ -68,6 +69,8 @@ def main():
       segment_id INTEGER,case_name TEXT,awv_road_id INTEGER,evidence_state TEXT,
       evidence_kmh INTEGER,original_forward INTEGER,original_backward INTEGER,
       component_segments INTEGER,component_length_m REAL,
+      candidate_forward_state TEXT,candidate_forward_kmh INTEGER,
+      candidate_backward_state TEXT,candidate_backward_kmh INTEGER,
       applied_speed_change INTEGER NOT NULL DEFAULT 0,
       PRIMARY KEY(segment_id,case_name))""")
     db.execute("DELETE FROM research_crosswalk_annotations WHERE case_name=?",(a.case,))
@@ -75,10 +78,14 @@ def main():
     for m in matches:
         sid=m["osm_segment_id"]
         if sid not in accepted:continue
-        rid=m["road_id"];state,khm=classify(ev.get(rid,[]));fw,bw=original[sid];d=diag[sid]
-        db.execute("INSERT INTO research_crosswalk_annotations VALUES (?,?,?,?,?,?,?,?,?,0)",(sid,a.case,rid,state,khm,fw,bw,d["component_segments"],d["component_length_m"]))
+        rid=m["road_id"];fw,bw=original[sid];d=diag[sid]
+        dx=m["end_xy"][0]-m["start_xy"][0];dy=m["end_xy"][1]-m["start_xy"][1]
+        directions=directional_summary(ev.get(rid,[]),dx,dy)
+        forward=directions["forward"];backward=directions["backward"]
+        state="directed_research_candidate";khm=None
+        db.execute("INSERT INTO research_crosswalk_annotations VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,0)",(sid,a.case,rid,state,khm,fw,bw,d["component_segments"],d["component_length_m"],forward["state"],forward["candidate_kmh"],backward["state"],backward["candidate_kmh"]))
         report.append({"segment_id":sid,"name":m["name"],"osm_way_id":m["osm_way_id"],"awv_road_id":rid,
-                       "evidence_state":state,"evidence_kmh":khm,"original_forward":fw,"original_backward":bw,
+                       "evidence_state":state,"evidence_kmh":khm,"forward_evidence":forward,"backward_evidence":backward,"original_forward":fw,"original_backward":bw,
                        "component_segments":d["component_segments"],"component_length_m":d["component_length_m"],
                        "applied_speed_change":False})
     db.commit()
@@ -87,5 +94,5 @@ def main():
     if changed:raise SystemExit("Safety violation: research annotator changed speed state")
     Path(a.report).write_text(json.dumps({"case":a.case,"status":"research_annotation_only","speed_changes_applied":0,
       "accepted_topology_segments":len(report),"annotations":report,
-      "guardrail":"No numeric speed was written to segments; direction semantics still unresolved."},indent=2)+"\n")
+      "guardrail":"No numeric speed was written to segments; directed candidates require further field validity and topology validation."},indent=2)+"\n")
 if __name__=="__main__":main()

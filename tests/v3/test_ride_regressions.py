@@ -100,7 +100,7 @@ class RegressionAuditTests(unittest.TestCase):
         self.assertEqual(bridge["evidence_level"],"official_directional")
         bohemen=next(x for x in data["anchors"] if x["id"]=="wichelen-bohemen-20261022-entry")
         self.assertEqual((bohemen["app_reported_kmh"],bohemen["expected_kmh"]),(70,50))
-        self.assertEqual(bohemen["evidence_level"],"official_location")
+        self.assertEqual(bohemen["evidence_level"],"rider_observation")
         stability=[x for x in data["anchors"] if x["evidence_level"]=="unverified"]
         self.assertGreaterEqual(len(stability),4)
         self.assertTrue(all(x["app_reported_kmh"]==0 for x in stability))

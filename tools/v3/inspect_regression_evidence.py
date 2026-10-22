@@ -40,8 +40,8 @@ def main():
         latpad=40/110000
         lonpad=40/(110000*math.cos(math.radians(lat)))
         rows=db.execute("""SELECT s.id,s.name,s.lat1,s.lon1,s.lat2,s.lon2,s.forward_kmh,s.backward_kmh,
-                                  q.forward_state,q.backward_state,q.original_forward,q.original_backward,
-                                  q.forward_features,q.backward_features,p.osm_way_id
+                                  q.forward_state,q.backward_state,q.osm_forward,q.osm_backward,
+                                  q.forward_evidence,q.backward_evidence,p.osm_way_id
                            FROM segments s JOIN segment_quality q ON q.segment_id=s.id
                            JOIN osm_provenance p ON p.segment_id=s.id
                            WHERE max(s.lat1,s.lat2)>=? AND min(s.lat1,s.lat2)<=?
@@ -54,8 +54,8 @@ def main():
                 "lat1":row[2],"lon1":row[3],"lat2":row[4],"lon2":row[5],
                 "forward_kmh":row[6],"backward_kmh":row[7],
                 "forward_state":row[8],"backward_state":row[9],
-                "original_forward":row[10],"original_backward":row[11],
-                "forward_feature_refs":row[12],"backward_feature_refs":row[13],
+                "osm_forward":row[10],"osm_backward":row[11],
+                "forward_evidence":row[12],"backward_evidence":row[13],
             })
         nearby=[]
         for feature in features:

@@ -74,7 +74,7 @@ class RegressionAuditTests(unittest.TestCase):
         data=json.loads(path.read_text(encoding="utf-8"))
         self.assertGreaterEqual(len(data["anchors"]),6)
         for row in data["anchors"]:
-            self.assertIn(row["evidence_level"],("official_directional","rider_observation","unverified"))
+            self.assertIn(row["evidence_level"],("official_directional","official_location","rider_observation","unverified"))
             self.assertIn("bearing_deg",row)
             self.assertIn("date",row)
         bridge=next(x for x in data["anchors"] if x["id"]=="ooiebrug-dendermonde-to-appels")
@@ -86,6 +86,24 @@ class RegressionAuditTests(unittest.TestCase):
         gijzegem=next(x for x in data["anchors"] if x["id"]=="gijzegem-return-zone30")
         self.assertEqual(gijzegem["evidence_level"],"unverified")
         self.assertEqual(gijzegem["app_reported_kmh"],30)
+
+
+    def test_20261022_fixture_has_numeric_and_stability_gates(self):
+        path=Path(__file__).resolve().parent/"fixtures"/"ride-regressions-20261022.json"
+        data=json.loads(path.read_text(encoding="utf-8"))
+        ids={x["id"] for x in data["anchors"]}
+        self.assertIn("ooiebrug-20261022-dendermonde-to-appels",ids)
+        self.assertIn("wichelen-bohemen-20261022-entry",ids)
+        self.assertIn("wichelse-steenweg-20261022-ambiguous-50-vs-missing",ids)
+        bridge=next(x for x in data["anchors"] if x["id"]=="ooiebrug-20261022-dendermonde-to-appels")
+        self.assertEqual((bridge["app_reported_kmh"],bridge["expected_kmh"]),(70,50))
+        self.assertEqual(bridge["evidence_level"],"official_directional")
+        bohemen=next(x for x in data["anchors"] if x["id"]=="wichelen-bohemen-20261022-entry")
+        self.assertEqual((bohemen["app_reported_kmh"],bohemen["expected_kmh"]),(70,50))
+        self.assertEqual(bohemen["evidence_level"],"official_location")
+        stability=[x for x in data["anchors"] if x["evidence_level"]=="unverified"]
+        self.assertGreaterEqual(len(stability),4)
+        self.assertTrue(all(x["app_reported_kmh"]==0 for x in stability))
 
 if __name__=="__main__":
     unittest.main()

@@ -223,6 +223,9 @@ jobs:
         run: |
           PYTHONPATH=tools/v3 python tools/v3/inspect_regression_evidence.py ooiebrug-quality.db awv-ooiebrug.json tests/v3/fixtures/ride-regressions-20261022.json ooiebrug-evidence.json --ids ooiebrug-20261022-dendermonde-to-appels
           PYTHONPATH=tools/v3 python tools/v3/inspect_regression_evidence.py wichelen-north-quality.db awv-wichelen-north.json tests/v3/fixtures/ride-regressions-20261022.json wichelen-north-evidence.json --ids wichelen-bohemen-20261022-entry,wichelen-bohemen-20261022-50-confirmed-later
+      - name: Evaluate research release readiness
+        run: |
+          PYTHONPATH=tools/v3 python tools/v3/evaluate_release_readiness.py release-readiness.json --ride-report ooiebrug-ride-regressions.json --ride-report wichelen-north-ride-regressions.json --ride-report wichelen-south-ride-regressions.json
       - name: Annotate topology-gated AWV evidence without changing speeds
         run: |
           PYTHONPATH=tools/v3 python tools/v3/annotate_research_crosswalk.py dendermonde-quality.db tools/v3/probe-cases-20261012.json dendermonde dendermonde-crosswalk-annotation.json
@@ -246,4 +249,5 @@ jobs:
             wichelen-south-ride-regressions.json
             ooiebrug-evidence.json
             wichelen-north-evidence.json
+            release-readiness.json
           retention-days: 14

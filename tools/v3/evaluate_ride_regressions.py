@@ -104,7 +104,7 @@ def evaluate(db, anchor):
     result["candidate_quality_state"]=best["quality_state"]
     if not best["limit_kmh"] or best["quality_state"] not in CERTAIN_QUALITY:
         result["status"]="uncertain_safe"
-    elif anchor["evidence_level"] == "official_directional":
+    elif anchor["evidence_level"] in ("official_directional","official_location"):
         result["status"] = ("matches_verified_reference" if best["limit_kmh"] == anchor["expected_kmh"]
                             else "verified_regression")
     elif anchor["evidence_level"] == "rider_observation" and anchor.get("expected_kmh") is not None:

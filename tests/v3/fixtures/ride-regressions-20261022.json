@@ -25,9 +25,9 @@
       "road": "Bohemen",
       "app_reported_kmh": 70,
       "expected_kmh": 50,
-      "evidence_level": "official_location",
+      "evidence_level": "rider_observation",
       "reference_url": "https://www.politie.be/5438/sites/5438/files/media/file/2025-05/Statistiek%20snelheid%20PZWLW%20-%20februari%202023.pdf",
-      "reference_note": "Police speed-control statistics list Bohemen in Wichelen at 50 km/h. Exact sign boundary still must be respected; this anchor is on Bohemen itself."
+      "reference_note": "Rider reports 50 on entry; police data confirms Bohemen has 50 km/h control locations, but the exact legal transition boundary at this GPS anchor is not independently proven. Do not use as a strict numeric release gate yet."
     },
     {
       "id": "wichelen-bohemen-20261022-50-confirmed-later",
@@ -40,7 +40,7 @@
       "expected_kmh": 50,
       "evidence_level": "official_location",
       "reference_url": "https://www.politie.be/5438/sites/5438/files/media/file/2025-05/Statistiek%20snelheid%20PZWLW%20-%20februari%202023.pdf",
-      "reference_note": "Same corridor later becomes 50 in the current map; protects against moving the boundary in the wrong direction."
+      "reference_note": "Later Bohemen point is consistent with police 50 km/h location context and the current map's 50 corridor; used as a context/protection point, not proof of the earlier boundary."
     },
     {
       "id": "wichelse-steenweg-20261022-ambiguous-70-vs-missing",

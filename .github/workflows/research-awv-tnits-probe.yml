@@ -187,25 +187,29 @@ jobs:
           curl --fail --location --retry 3 --connect-timeout 20 --max-time 300 -o dendermonde.osm 'https://api.openstreetmap.org/api/0.6/map?bbox=4.086,51.029,4.096,51.035'
           curl --fail --location --retry 3 --connect-timeout 20 --max-time 300 -o wieze.osm 'https://api.openstreetmap.org/api/0.6/map?bbox=4.078,50.977,4.089,50.984'
           curl --fail --location --retry 3 --connect-timeout 20 --max-time 300 -o ooiebrug.osm 'https://api.openstreetmap.org/api/0.6/map?bbox=4.073,51.029,4.085,51.034'
-          curl --fail --location --retry 3 --connect-timeout 20 --max-time 300 -o wichelen.osm 'https://api.openstreetmap.org/api/0.6/map?bbox=3.960,50.964,4.013,51.005'
+          curl --fail --location --retry 3 --connect-timeout 20 --max-time 300 -o wichelen-north.osm 'https://api.openstreetmap.org/api/0.6/map?bbox=3.984,50.999,4.006,51.004'
+          curl --fail --location --retry 3 --connect-timeout 20 --max-time 300 -o wichelen-south.osm 'https://api.openstreetmap.org/api/0.6/map?bbox=3.970,50.964,3.981,50.983'
       - name: Download regional AWV snapshots
         run: |
           python tools/v3/download_awv_region.py awv-dendermonde.json --bbox 4.086,51.029,4.096,51.035
           python tools/v3/download_awv_region.py awv-wieze.json --bbox 4.078,50.977,4.089,50.984
           python tools/v3/download_awv_region.py awv-ooiebrug.json --bbox 4.073,51.029,4.085,51.034
-          python tools/v3/download_awv_region.py awv-wichelen.json --bbox 3.960,50.964,4.013,51.005
+          python tools/v3/download_awv_region.py awv-wichelen-north.json --bbox 3.984,50.999,4.006,51.004
+          python tools/v3/download_awv_region.py awv-wichelen-south.json --bbox 3.970,50.964,3.981,50.983
       - name: Build small OSM databases
         run: |
           python tools/v3/build_belgium_db.py dendermonde.osm dendermonde-osm.db
           python tools/v3/build_belgium_db.py wieze.osm wieze-osm.db
           python tools/v3/build_belgium_db.py ooiebrug.osm ooiebrug-osm.db
-          python tools/v3/build_belgium_db.py wichelen.osm wichelen-osm.db
+          python tools/v3/build_belgium_db.py wichelen-north.osm wichelen-north-osm.db
+          python tools/v3/build_belgium_db.py wichelen-south.osm wichelen-south-osm.db
       - name: Build regional candidates
         run: |
           python tools/v3/build_quality_map.py dendermonde-osm.db awv-dendermonde.json dendermonde-quality.db dendermonde-quality-report.json --workers 1 --checkpoint-every 5000
           python tools/v3/build_quality_map.py wieze-osm.db awv-wieze.json wieze-quality.db wieze-quality-report.json --workers 1 --checkpoint-every 5000
           python tools/v3/build_quality_map.py ooiebrug-osm.db awv-ooiebrug.json ooiebrug-quality.db ooiebrug-quality-report.json --workers 1 --checkpoint-every 5000
-          python tools/v3/build_quality_map.py wichelen-osm.db awv-wichelen.json wichelen-quality.db wichelen-quality-report.json --workers 1 --checkpoint-every 5000
+          python tools/v3/build_quality_map.py wichelen-north-osm.db awv-wichelen-north.json wichelen-north-quality.db wichelen-north-quality-report.json --workers 1 --checkpoint-every 5000
+          python tools/v3/build_quality_map.py wichelen-south-osm.db awv-wichelen-south.json wichelen-south-quality.db wichelen-south-quality-report.json --workers 1 --checkpoint-every 5000
       - name: Evaluate Dendermonde and Wieze anchors
         run: |
           python tools/v3/evaluate_candidate_anchors.py dendermonde-quality.db tools/v3/probe-cases-20261012.json dendermonde-anchor-report.json
@@ -213,7 +217,8 @@ jobs:
       - name: Evaluate 2026-10-22 Ooiebrug and Wichelen ride regressions
         run: |
           PYTHONPATH=tools/v3 python tools/v3/evaluate_ride_regressions.py ooiebrug-quality.db tests/v3/fixtures/ride-regressions-20261022.json ooiebrug-ride-regressions.json --ids ooiebrug-20261022-dendermonde-to-appels
-          PYTHONPATH=tools/v3 python tools/v3/evaluate_ride_regressions.py wichelen-quality.db tests/v3/fixtures/ride-regressions-20261022.json wichelen-ride-regressions.json --ids wichelen-bohemen-20261022-entry,wichelen-bohemen-20261022-50-confirmed-later,wichelse-steenweg-20261022-ambiguous-70-vs-missing,wichelse-steenweg-20261022-ambiguous-50-vs-70,wichelse-steenweg-20261022-ambiguous-50-vs-missing,wichelse-steenweg-20261022-ambiguous-50-missing-repeat,rammelstraat-20261022-ambiguous-50-missing
+          PYTHONPATH=tools/v3 python tools/v3/evaluate_ride_regressions.py wichelen-north-quality.db tests/v3/fixtures/ride-regressions-20261022.json wichelen-north-ride-regressions.json --ids wichelen-bohemen-20261022-entry,wichelen-bohemen-20261022-50-confirmed-later
+          PYTHONPATH=tools/v3 python tools/v3/evaluate_ride_regressions.py wichelen-south-quality.db tests/v3/fixtures/ride-regressions-20261022.json wichelen-south-ride-regressions.json --ids wichelse-steenweg-20261022-ambiguous-70-vs-missing,wichelse-steenweg-20261022-ambiguous-50-vs-70,wichelse-steenweg-20261022-ambiguous-50-vs-missing,wichelse-steenweg-20261022-ambiguous-50-missing-repeat,rammelstraat-20261022-ambiguous-50-missing
       - name: Annotate topology-gated AWV evidence without changing speeds
         run: |
           PYTHONPATH=tools/v3 python tools/v3/annotate_research_crosswalk.py dendermonde-quality.db tools/v3/probe-cases-20261012.json dendermonde dendermonde-crosswalk-annotation.json
@@ -230,7 +235,9 @@ jobs:
             dendermonde-crosswalk-annotation.json
             wieze-crosswalk-annotation.json
             ooiebrug-quality-report.json
-            wichelen-quality-report.json
+            wichelen-north-quality-report.json
+            wichelen-south-quality-report.json
             ooiebrug-ride-regressions.json
-            wichelen-ride-regressions.json
+            wichelen-north-ride-regressions.json
+            wichelen-south-ride-regressions.json
           retention-days: 14

@@ -127,9 +127,17 @@ def main():
     parser.add_argument("database")
     parser.add_argument("fixture")
     parser.add_argument("report")
-    parser.add_argument("--strict",action="store_true",help="Fail only on a verified direction-specific mismatch")
+    parser.add_argument("--strict",action="store_true",help="Fail only on an independently verified mismatch")
+    parser.add_argument("--ids",default="",help="Comma-separated anchor ids to evaluate")
     args=parser.parse_args()
     fixture=json.loads(Path(args.fixture).read_text(encoding="utf-8"))
+    if args.ids:
+        wanted={value.strip() for value in args.ids.split(",") if value.strip()}
+        fixture=dict(fixture)
+        fixture["anchors"]=[row for row in fixture["anchors"] if row["id"] in wanted]
+        missing=wanted-{row["id"] for row in fixture["anchors"]}
+        if missing:
+            raise SystemExit("Unknown anchor ids: "+",".join(sorted(missing)))
     with sqlite3.connect(Path(args.database).resolve().as_uri()+"?mode=ro",uri=True) as db:
         report=audit(db,fixture)
     Path(args.report).write_text(json.dumps(report,indent=2,ensure_ascii=False)+"\n",encoding="utf-8")

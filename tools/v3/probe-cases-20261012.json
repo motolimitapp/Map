@@ -114,6 +114,52 @@
           "lon": 4.0505517
         }
       ]
+    },
+    {
+      "name": "ooiebrug",
+      "bbox": [
+        4.073,
+        51.029,
+        4.085,
+        51.034
+      ],
+      "anchors": [
+        {
+          "label": "dendermonde_to_appels_wrong70",
+          "lat": 51.0315854,
+          "lon": 4.079683,
+          "bearing_deg": 253.9,
+          "app_selected_road": "Gentsesteenweg",
+          "app_selected_limit": 70
+        }
+      ]
+    },
+    {
+      "name": "wichelen_bohemen",
+      "bbox": [
+        3.984,
+        50.999,
+        4.006,
+        51.004
+      ],
+      "anchors": [
+        {
+          "label": "bohemen_wrong70",
+          "lat": 51.0021383,
+          "lon": 3.9965807,
+          "bearing_deg": 266.7,
+          "app_selected_road": "Bohemen",
+          "app_selected_limit": 70
+        },
+        {
+          "label": "bohemen_later50",
+          "lat": 51.0018765,
+          "lon": 3.9924685,
+          "bearing_deg": 268.4,
+          "app_selected_road": "Bohemen",
+          "app_selected_limit": 50
+        }
+      ]
     }
   ],
   "tnits_sample_limit": 30

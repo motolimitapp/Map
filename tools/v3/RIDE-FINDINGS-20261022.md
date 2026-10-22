@@ -33,21 +33,18 @@ This is a map/evidence problem, not GPS noise. Direction-specific temporary evid
 
 ## Wichelen / Bohemen
 
-Exact ride anchor:
-- 2026-10-22 11:05:50Z
-- 51.0021383, 3.9965807
-- bearing 266.7 degrees
-- app selected 70 km/h, quality=osm
+Exact ride observations:
+- MotoLimiet remains 70 on the eastern part of Bohemen/Steenweg naar Wetteren.
+- Both 2026-10-22 rides change to 50 around lon 3.9922-3.9925 on Bohemen.
 
-Current production-map trace:
-- nearest Bohemen segment is 70/70 in the shipped map
-- later in the same driven corridor, at 51.0018765, 3.9924685, the map changes to 50/50
-
-Independent evidence:
-Police speed-control statistics list Bohemen in Wichelen at 50 km/h.
+Refined evidence:
+- Police speed-control data confirms 50 km/h locations on Bohemen, but does not prove the exact legal transition boundary at the earlier GPS anchor.
+- The AWV static signs/built-up evidence contains C43-50 and F1a Wichelen context in the transition area.
+- The ordinary AWV speed-regime layer still contains 70 evidence around the earlier anchor.
+- Therefore the earlier 70 point is NOT an independently verified numeric regression yet. Treat it as a rider/boundary discrepancy until the exact sign boundary is proven.
 
 Conclusion:
-The current map places or retains a 70 corridor too far into Bohemen. The transition boundary must be derived from source topology/evidence, not from a coordinate exception.
+Do not force 50 at the earlier coordinate. Preserve the later confirmed 50 corridor and keep the transition as a research case.
 
 ## Wichelse steenweg repeated ambiguity
 
@@ -71,3 +68,13 @@ There are two different cases and they must stay separate:
 - Numeric-vs-numeric conflicts remain unknown unless independent direction/topology evidence resolves them.
 - A missing/non-comparable side segment may only be prevented from causing ambiguity when the driven road corridor is independently stable and the missing segment cannot plausibly be the driven carriageway.
 - No street-name or coordinate-specific production exceptions.
+
+## Refined Ooiebrug source conclusion
+
+Ooiebrug remains a verified direction-specific regression:
+- official AWV public works information states 50 km/h Dendermonde -> Aalst while the temporary measure remains active;
+- the opposite direction remains 70 km/h;
+- current OSM, AWV Afgeleide_snelheidsregimes and static AWV traffic-sign inventory around the driven line all still support 70;
+- sampled TN-ITS data did not provide a usable machine-readable temporary 50 record.
+
+Therefore the production pipeline currently lacks a generic machine-readable source for this temporary restriction. Do not hardcode a street or coordinate exception. Keep this as a release blocker until a generic authoritative temporary-restrictions source can resolve it, or the official measure ends.

@@ -1,0 +1,101 @@
+{
+  "source": "MotoLimiet 0.3.11 diagnostic rides 2026-10-22 + current official road-speed references",
+  "note": "Exact GPS anchors from exported ride logs. Numeric release gates are used only where independent evidence supports them. Stability anchors document runtime ambiguity without forcing a speed.",
+  "anchors": [
+    {
+      "id": "ooiebrug-20261022-dendermonde-to-appels",
+      "date": "2026-10-22",
+      "lat": 51.0315854,
+      "lon": 4.079683,
+      "bearing_deg": 253.9,
+      "road": "Gentsesteenweg",
+      "app_reported_kmh": 70,
+      "expected_kmh": 50,
+      "evidence_level": "official_directional",
+      "valid_from": "2025-03-24",
+      "reference_url": "https://wegenenverkeer.be/werken/tijdelijke-verkeersmaatregelen-op-de-ooiebrug-n406-dendermonde",
+      "reference_note": "AWV: Dendermonde to Aalst 50 km/h while temporary bridge measure remains active; opposite direction 70 km/h."
+    },
+    {
+      "id": "wichelen-bohemen-20261022-entry",
+      "date": "2026-10-22",
+      "lat": 51.0021383,
+      "lon": 3.9965807,
+      "bearing_deg": 266.7,
+      "road": "Bohemen",
+      "app_reported_kmh": 70,
+      "expected_kmh": 50,
+      "evidence_level": "official_location",
+      "reference_url": "https://www.politie.be/5438/sites/5438/files/media/file/2025-05/Statistiek%20snelheid%20PZWLW%20-%20februari%202023.pdf",
+      "reference_note": "Police speed-control statistics list Bohemen in Wichelen at 50 km/h. Exact sign boundary still must be respected; this anchor is on Bohemen itself."
+    },
+    {
+      "id": "wichelen-bohemen-20261022-50-confirmed-later",
+      "date": "2026-10-22",
+      "lat": 51.0018765,
+      "lon": 3.9924685,
+      "bearing_deg": 268.4,
+      "road": "Bohemen",
+      "app_reported_kmh": 50,
+      "expected_kmh": 50,
+      "evidence_level": "official_location",
+      "reference_url": "https://www.politie.be/5438/sites/5438/files/media/file/2025-05/Statistiek%20snelheid%20PZWLW%20-%20februari%202023.pdf",
+      "reference_note": "Same corridor later becomes 50 in the current map; protects against moving the boundary in the wrong direction."
+    },
+    {
+      "id": "wichelse-steenweg-20261022-ambiguous-70-vs-missing",
+      "date": "2026-10-22",
+      "lat": 50.981423,
+      "lon": 3.9735839,
+      "bearing_deg": 171.2,
+      "road": "Wichelse steenweg",
+      "app_reported_kmh": 0,
+      "evidence_level": "unverified",
+      "reference_note": "Runtime candidates were 70,70 and one 0 on the same named corridor; produced spoken unknown. Stability diagnostic only."
+    },
+    {
+      "id": "wichelse-steenweg-20261022-ambiguous-50-vs-70",
+      "date": "2026-10-22",
+      "lat": 50.9805811,
+      "lon": 3.9739206,
+      "bearing_deg": 159.8,
+      "road": "Wichelse steenweg",
+      "app_reported_kmh": 0,
+      "evidence_level": "unverified",
+      "reference_note": "Runtime candidates included two 50 segments and one 70 segment with near-identical heading; produced unknown. Do not suppress until the transition boundary is proven."
+    },
+    {
+      "id": "wichelse-steenweg-20261022-ambiguous-50-vs-missing",
+      "date": "2026-10-22",
+      "lat": 50.9794162,
+      "lon": 3.9746132,
+      "bearing_deg": 161.2,
+      "road": "Wichelse steenweg",
+      "app_reported_kmh": 0,
+      "evidence_level": "unverified",
+      "reference_note": "Runtime candidates were predominantly 50 with one 0 on same named corridor; produced spoken unknown. Candidate for continuity-aware ambiguity handling."
+    },
+    {
+      "id": "wichelse-steenweg-20261022-ambiguous-50-missing-repeat",
+      "date": "2026-10-22",
+      "lat": 50.9778581,
+      "lon": 3.9749801,
+      "bearing_deg": 177.6,
+      "road": "Wichelse steenweg",
+      "app_reported_kmh": 0,
+      "evidence_level": "unverified",
+      "reference_note": "Repeated 50+0 ambiguity on same corridor. Stability diagnostic only."
+    },
+    {
+      "id": "rammelstraat-20261022-ambiguous-50-missing",
+      "date": "2026-10-22",
+      "lat": 50.9663929,
+      "lon": 3.9774688,
+      "bearing_deg": 173.4,
+      "road": "Rammelstraat",
+      "app_reported_kmh": 0,
+      "evidence_level": "unverified",
+      "reference_note": "Rammelstraat/Markt candidates mix 50 and 0, yielding spoken unknown without a demonstrated speed-change event."
+    }
+  ]
+}
